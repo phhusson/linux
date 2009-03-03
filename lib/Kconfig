@@ -747,6 +747,13 @@ config LWQ_TEST
 	help
           Run boot-time test of light-weight queuing.
 
+config ARCH_HAS_FBXSERIAL
+	bool
+
+config FBXSERIAL
+	bool "fbxserial"
+	select CRC32
+
 endmenu
 
 config GENERIC_IOREMAP
