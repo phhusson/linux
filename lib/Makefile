@@ -381,6 +381,8 @@ obj-$(CONFIG_GENERIC_LIB_CMPDI2) += cmpdi2.o
 obj-$(CONFIG_GENERIC_LIB_UCMPDI2) += ucmpdi2.o
 obj-$(CONFIG_OBJAGG) += objagg.o
 
+obj-$(CONFIG_FBXSERIAL) += fbxserial.o
+
 # pldmfw library
 obj-$(CONFIG_PLDMFW) += pldmfw/
 
