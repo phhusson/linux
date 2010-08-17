@@ -21,21 +21,28 @@
 #include <linux/font.h>
 #include <linux/fb.h>
 #include <linux/fb_helper.h>
+
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
+
 #include <mach/msm_iomap.h>
 #include <mach/msm_fb.h>
 #include <../../.././arch/arm/mach-msm/proc_comm_wince.h>
 #include <linux/delay.h>
 
 
-#define MSM_BLACKSTONE_PAD_LCD_WIDTH	480
-#define MSM_BLACKSTONE_PAD_LCD_HEIGHT	800
+#define TP_X_MIN 0
+#define TP_X_MAX 1023
+#define TP_Y_MIN 0
+#define TP_Y_MAX 1023
 #define MSM_BLACKSTONE_PAD_NBUTTONS	4
-#define MSM_BLACKSTONE_PAD_BWIDTH	120
-extern int vibrate=0;
+#define MSM_BLACKSTONE_PAD_BWIDTH	256
+#define MSM_BLACKSTONE_PAD_LONG_PRESS_TIME  100
+
+
+int vibrate=0;
 module_param_named(vibrate, vibrate, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 /* returns whether position was inside blackstone_pad, so as to eat event */
@@ -44,37 +51,95 @@ extern msm_ts_handler_t *msm_ts_handler_pad;
 
 static struct input_dev *msm_blackstone_pad_dev;
 
-static int pad_keymap[MSM_BLACKSTONE_PAD_NBUTTONS] =
+static int pad_keymap[MSM_BLACKSTONE_PAD_NBUTTONS *2] =
 {
 	KEY_F3,
-	KEY_MENU, //KEY_MENU, KEY_MENU
+	KEY_MENU,
+	KEY_BACK,
+	KEY_F4,
+	KEY_F3,
+	KEY_MENU,
 	KEY_BACK,
 	KEY_F4
 };
 
+
+void do_vibrate(void)
+{
+	if(vibrate) {
+		struct msm_dex_command vibra = { .cmd = 0, };
+		vibra.cmd = PCOM_VIBRA_ON;
+		msm_proc_comm_wince(&vibra, 0);
+		mdelay(50);
+		vibra.cmd = PCOM_VIBRA_OFF;
+		msm_proc_comm_wince(&vibra, 0);
+	}	
+}
+
 int msm_blackstone_pad_handle_ts_event(int x, int y, int touched)
 {
-	if (y==MSM_BLACKSTONE_PAD_LCD_HEIGHT-1 && x != 0) {
-		if (!touched) { //Only if its the first touch event, generate the key event
-			struct msm_dex_command vibra = { .cmd = 0, };
-			int button;
-			button = x / MSM_BLACKSTONE_PAD_BWIDTH;
-			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[button], 1);
+	/*irq_counter counts the amount of 
+	 * interrupt received until touched = false.
+	 * <100 interrupts means short press
+	 * on irq_counter = 100: long press
+	 * >100 do nothing                 */
+	static int irq_counter = 0;
+	static int prev_button = -1;
+	int button;
+	
+	/* no touch button pressed*/
+	if (touched && !irq_counter && y<TP_Y_MAX)
+		return 0;
+	
+	/*the user is touching the button longer than he should*/
+	if (touched && irq_counter>MSM_BLACKSTONE_PAD_LONG_PRESS_TIME)
+		return 1;
+		
+	/*the user no loger touches the button
+	 * trigger short press (< 100 irq)
+	 * reset counter */
+	if (!touched) {
+		if (irq_counter && irq_counter<MSM_BLACKSTONE_PAD_LONG_PRESS_TIME && prev_button!=-1) {
+			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button], 1);
 			input_sync(msm_blackstone_pad_dev);
-			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[button], 0);
+			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button], 0);
 			input_sync(msm_blackstone_pad_dev);
-			if(vibrate) {
-				// vibrate when pressed
-				vibra.cmd = PCOM_VIBRA_ON;
-				msm_proc_comm_wince(&vibra, 0);
-				mdelay(20);
-				vibra.cmd = PCOM_VIBRA_OFF;
-				msm_proc_comm_wince(&vibra, 0);
-			}
+			
 			mdelay(75);
 		}
-		return 1; //prevent Linux from getting events when buttons clicked
+		irq_counter = 0;
+		prev_button = -1;
+		return 1; 
 	}
+
+
+	button = x / MSM_BLACKSTONE_PAD_BWIDTH;
+	
+	/*first touch*/
+	if (touched && !irq_counter) {
+		do_vibrate();
+		prev_button = button;
+		irq_counter++;
+		return 1;
+	}
+	
+	/*the user is holding the button
+	 * check if he is still on the button
+	 * trigger long press event
+	 * button +4 is long press event*/
+	if (touched && irq_counter) {
+		if (button != prev_button || y!=TP_Y_MAX)	irq_counter = MSM_BLACKSTONE_PAD_LONG_PRESS_TIME +1;
+		else if (++irq_counter == MSM_BLACKSTONE_PAD_LONG_PRESS_TIME) {
+			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button +4], 1);
+			input_sync(msm_blackstone_pad_dev);
+			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button +4], 0);
+			input_sync(msm_blackstone_pad_dev);
+			
+			do_vibrate();
+		}
+		return 1;
+	}
+	
 	return 0;
 }
 

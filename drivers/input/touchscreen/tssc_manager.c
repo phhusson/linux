@@ -33,6 +33,9 @@ static void tssc_manager_early_suspend(struct early_suspend *h);
 static void tssc_manager_late_resume(struct early_suspend *h);
 #endif
 
+typedef int msm_ts_handler_t(int, int, int);
+msm_ts_handler_t *msm_ts_handler_pad; // blackstone handler
+
 /// For calibration, display the reference points.
 static ssize_t tssc_calibration_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -220,6 +223,9 @@ static int touch_add_queue(int x, int x16, int y, int y16,int p)
  */
 static void touch_input_up(struct input_dev *dev)
 {
+	if (msm_ts_handler_pad) 
+		(*msm_ts_handler_pad)(0, 0, 0);
+	
 	if (touch_report_count > 0) {
 		input_report_abs(dev, ABS_PRESSURE, 0);
 		input_report_abs(dev, ABS_TOOL_WIDTH, 0);
@@ -255,6 +261,7 @@ static void touch_process_queue(struct input_dev *dev)
 {
 	int x = 0;
 	int y = 0;
+	int bspad = 0;
 	
     	struct timespec ts;
     	struct rtc_time tm;
@@ -272,11 +279,14 @@ static void touch_process_queue(struct input_dev *dev)
 		return;
     	}
 
-    	if (touch_sample_count >= TOUCH_QUEUE_NUMBER)
+	if (touch_sample_count >= TOUCH_QUEUE_NUMBER)
 		touch_get_average();
 	calibration_translate(touch_average_x, touch_average_y, &x, &y);
 
-	if (x >= 0 && y >= 0) {
+	if (msm_ts_handler_pad) 
+		bspad = (*msm_ts_handler_pad)(x, y, 1);
+
+	if (!bspad && x >= 0 && y >= 0) {
 		if(debug_tp & DEBUG_TP_ON) printk(KERN_DEBUG "touch_process_queue(): x=%d\t", x);
 	        input_report_abs(dev, ABS_X, x);
 	        if(debug_tp & DEBUG_TP_ON) printk(KERN_DEBUG "y=%d\t", y);

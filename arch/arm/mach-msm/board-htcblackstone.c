@@ -167,6 +167,11 @@ static struct platform_device blac_snd = {
 	},
 };
 
+static struct platform_device touchscreen = {
+	.name		= "tssc-manager",
+	.id		= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&raphael_rfkill,
 	&msm_device_smd,
@@ -174,6 +179,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_i2c,
 	&msm_device_rtc,
 	&msm_device_htc_hw,
+	&touchscreen,
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
 #endif

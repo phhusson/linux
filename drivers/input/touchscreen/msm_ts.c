@@ -55,11 +55,14 @@
 #define TSSC_DATA_LO_AVE	0x110
 #define TSSC_DATA_UP_AVE	0x114
 
+
 /* returns whether position was inside vkeyb, so as to eat event */
+
 typedef int msm_ts_handler_t(int, int, int);
 msm_ts_handler_t *msm_ts_handler; // virtual keyboard handler
-msm_ts_handler_t *msm_ts_handler_pad; // blackstone handler
+extern msm_ts_handler_t *msm_ts_handler_pad; // blackstone handler
 
+  
 /* Work used by the polling mechanism after an interrupt has fired */
 static void msm_ts_process_irq1(struct work_struct *work);
 static void msm_ts_process_irq2(struct work_struct *work);
@@ -355,7 +358,7 @@ static int __init msm_ts_init(void)
 {
 	int err;
 #if defined CONFIG_TOUCHSCREEN_TSSC_MANAGER 
-	if(!machine_is_htcblackstone() && !machine_is_htckovsky()) {
+	if(!machine_is_htckovsky()) {
 		printk("\"Old\" touchscreen driver called for a non-blackstone device\n");
 		printk("If you really want that, edit the msm_ts.c file and delete this check\n");
 		return 0;
