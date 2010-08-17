@@ -325,6 +325,7 @@ int __init htcblackstone_init_panel(void)
 	if (IS_ERR(vreg_lcm_2v85))
 		return PTR_ERR(vreg_lcm_2v85);
 
+#if 0
 	gp_clk = clk_get(NULL, "gp_clk");
 	if (IS_ERR(gp_clk)) {
 		printk(KERN_ERR "%s: could not get gp clock\n", __func__);
@@ -335,6 +336,7 @@ int __init htcblackstone_init_panel(void)
 	{
 		printk(KERN_ERR "%s: set clock rate failed\n", __func__);
 	}
+#endif
 
 	rc = platform_device_register(&msm_device_mdp);
 	if (rc)

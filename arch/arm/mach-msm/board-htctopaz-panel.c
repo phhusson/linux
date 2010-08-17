@@ -157,7 +157,7 @@ static struct microp_spi_table spi_deinit_table[] = {
 	{0x10,0x00,0x00},
 };
 
-static struct clk *gp_clk;
+//static struct clk *gp_clk;
 static struct vreg *vreg_lcd_1;	/* LCD1 */
 static struct vreg *vreg_lcd_2;	/* LCD2 */
 
@@ -363,6 +363,7 @@ int __init htctopaz_init_panel(void)
 
 	printk(KERN_INFO "%s: Initializing panel\n", __func__);
 
+#if 0
 	gp_clk = clk_get(NULL, "gp_clk");
 	if (IS_ERR(gp_clk)) {
 		printk(KERN_ERR "%s: could not get gp clock\n", __func__);
@@ -373,6 +374,7 @@ int __init htctopaz_init_panel(void)
 	{
 		printk(KERN_ERR "%s: set clock rate failed\n", __func__);
 	}
+#endif
 	vreg_lcd_1 = vreg_get(0, "gp2");
 	if (IS_ERR(vreg_lcd_1))
 		return PTR_ERR(vreg_lcd_1);
