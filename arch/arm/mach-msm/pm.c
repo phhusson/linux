@@ -29,6 +29,7 @@
 #include <mach/system.h>
 #include <mach/fiq.h>
 #include <asm/io.h>
+#include <mach/vreg.h>
 
 #include "smd_private.h"
 #include "acpuclock.h"
@@ -456,18 +457,6 @@ static struct platform_suspend_ops msm_pm_ops = {
 
 static uint32_t restart_reason = 0x776655AA;
 
-static void msm_pm_power_off(void)
-{
-#ifdef CONFIG_MSM_AMSS_VERSION_WINCE
-	struct msm_dex_command dex = { .cmd = PCOM_POWER_OFF };
-	msm_proc_comm_wince(&dex, 0);
-	printk(KERN_INFO "%s: halting done...\n", __func__);
-#else
-	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
-#endif
-	for (;;) ;
-}
-
 static void msm_pm_restart(char str)
 {
 	/* If there's a hard reset hook and the restart_reason
@@ -485,6 +474,23 @@ static void msm_pm_restart(char str)
 	} else {
 		msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
 	}
+#endif
+	for (;;) ;
+}
+
+static void msm_pm_power_off(void)
+{
+#ifdef CONFIG_MSM_AMSS_VERSION_WINCE
+	struct msm_dex_command dex = { .cmd = PCOM_POWER_OFF };
+	msm_proc_comm_wince(&dex, 0);
+	printk(KERN_INFO "%s: halting done...\n", __func__);
+#else
+	struct vreg *vreg_msmp;
+	vreg_msmp=vreg_get(0, "msmp");
+	if(!IS_ERR(vreg_msmp))
+		vreg_disable(vreg_msmp);
+	else
+		msm_pm_restart
 #endif
 	for (;;) ;
 }
@@ -592,7 +598,7 @@ void fiq(void *data,void *regs) {
 
 static int __init msm_pm_init(void)
 {
-	pm_power_off = msm_pm_restart;
+	pm_power_off = msm_pm_power_off;
 	arm_pm_restart = msm_pm_restart;
 	msm_pm_max_sleep_time = 0;
 
