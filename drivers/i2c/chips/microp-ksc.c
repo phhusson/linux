@@ -144,6 +144,28 @@ int micropksc_set_led(unsigned int led, int on)
 }
 EXPORT_SYMBOL(micropksc_set_led);
 
+int micropksc_set_kbd_led_state(int on)
+{
+	printk(KERN_INFO MODULE_NAME ": micropksc_set_kbd_led_state (%d)\n", on);
+	struct microp_ksc *data;
+	struct i2c_client *client;
+
+	data = micropksc_t;
+	client = data->client;
+
+	uint8_t buffer_qwerty[10]={MICROP_KSC_ID_QWERTY_BRIGHTNESS_KOVS, on ? 0x60 : 0, on ? 0x40 : 0xFF, on ? 0x60 : 0,0,0,0,0,0,0};
+	micropksc_write(client, buffer_qwerty, 10);
+
+	uint8_t buffer[3];
+	buffer[0]=MICROP_KSC_ID_QWERTY_ENABLE_KOVS;
+	buffer[1]=0;
+	buffer[2]=(uint8_t)on;
+	micropksc_write(client, buffer, 3);
+	return 0;
+};
+EXPORT_SYMBOL(micropksc_set_kbd_led_state);
+
+
 /**
  * The i2c buffer holds all the keys that are pressed,
  * even when microp-ksc isn't listening. It's safe to assume

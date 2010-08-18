@@ -329,7 +329,7 @@ static int microp_keymap_htckovsky[] = {
 	KEY_SPACE,
 	KEY_BACKSPACE, // CLOSE
 	KEY_DOT,
-	KEY_RESERVED, // OK
+	KEY_BACK, // OK ; same as front OK
 	KEY_SLASH,
 	KEY_COMMA,
 	KEY_RESERVED,
@@ -434,6 +434,8 @@ static void microp_keypad_work(struct work_struct *work)
 						!clamshell ? "closed" : "open");
 
 			micropklt_set_kbd_state(!clamshell);
+			if (machine_is_htckovsky())
+				micropksc_set_kbd_led_state(clamshell);
 			input_report_switch(data->input, SW_LID, !clamshell);
 		}
 	} while ( key != 0 );
@@ -481,6 +483,9 @@ static int microp_keypad_remove(struct platform_device *pdev)
 
 	if (pdata->backlight_gpio > 0)
 		gpio_set_value(pdata->backlight_gpio, 0);
+
+	if (machine_is_htckovsky())
+		micropksc_set_kbd_led_state(0);
 
 	if (data->keypress_irq > 0)
 		free_irq(data->keypress_irq, data);
@@ -550,6 +555,9 @@ static void microp_backlight_timeout(struct work_struct *work)
 
 	if (pdata->backlight_gpio > 0)
 		gpio_set_value(pdata->backlight_gpio, 0);
+
+	if (machine_is_htckovsky())
+		micropksc_set_kbd_led_state(0);
 }
 
 static int microp_keypad_probe(struct platform_device *pdev)
@@ -710,6 +718,8 @@ static int microp_keypad_suspend(struct platform_device *pdev, pm_message_t mesg
 	struct microp_keypad_platform_data *pdata = pdev->dev.platform_data;
 	if (pdata->backlight_gpio > 0)
 		gpio_set_value(pdata->backlight_gpio, 0);
+	if (machine_is_htckovsky())
+		micropksc_set_kbd_led_state(0);
 	flush_scheduled_work();
 	return 0;
 }

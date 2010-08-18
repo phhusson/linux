@@ -19,8 +19,12 @@ enum {
 	MICROP_KSC_LED_CAPS_RAPH800 = 2,
 };
 
-extern int micropksc_read_scancode_kovsky(unsigned char *scancode, unsigned char *isdown, unsigned char *clamshell);
 extern int micropksc_read_scancode(unsigned char *scancode, unsigned char *isdown);
 extern int micropksc_set_led(unsigned int led, int value);
+
+#define MICROP_KSC_ID_QWERTY_BRIGHTNESS_KOVS	0x32
+#define MICROP_KSC_ID_QWERTY_ENABLE_KOVS	0x30
+extern int micropksc_set_kbd_led_state(int on);
+extern int micropksc_read_scancode_kovsky(unsigned char *scancode, unsigned char *isdown, unsigned char *clamshell);
 
 #endif

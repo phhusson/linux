@@ -95,6 +95,22 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 	else
 		state |= b;
 
+	if (idx == 6+8) //button-backlight
+	{
+		if (machine_is_htckovsky())
+		{
+			buffer[0]=MICROP_KLT_ID_KEYPAD_BRIGHTNESS_KOVS;
+			if (brightness)
+			{
+				buffer[1]=0x80;
+				buffer[2]=brightness/4;
+			}
+
+			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to %d\n", led_cdev->name, buffer[2]);
+			micropklt_write(client, buffer, 3);
+		}
+	}
+
 	// lcd-backlight lets us do varied brightness
 	if ( idx==5+8 /*&& brightness>0*/) {
 		//microp version ?
@@ -404,6 +420,8 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	struct microp_klt *data;
 	int supported, r, i;
 	uint8_t buf[3] = { 0, 0, 0 };
+	int id_version;
+
 	auto_bl = 0;
 
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-LED chip driver at "
@@ -431,7 +449,6 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	micropklt_t = data;
 
 	// Read version
-	int id_version;
 	if (machine_is_htckovsky()) {
 		id_version = MICROP_KLT_ID_VERSION_KOVS;
 	} else {

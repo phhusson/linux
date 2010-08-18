@@ -79,7 +79,7 @@ static struct microp_klt {
 #define MICROP_KLT_ID_VERSION_KOVS           0x07 // Chip revision
 #define MICROP_KLT_ID_LED_STATE_KOVS         0x20 // Set LED behavior using above bitmasks
 #define MICROP_KLT_ID_LCD_BRIGHTNESS_KOVS    0x12 // Set brightness of LCD backlight
-
+#define MICROP_KLT_ID_KEYPAD_BRIGHTNESS_KOVS	0x14 // Set brightness of front keypad
 
 
 //Mahimahi's constants names
