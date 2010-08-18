@@ -39,7 +39,6 @@
 #define TP_Y_MAX 1023
 #define MSM_BLACKSTONE_PAD_NBUTTONS	4
 #define MSM_BLACKSTONE_PAD_BWIDTH	256
-#define MSM_BLACKSTONE_PAD_LONG_PRESS_TIME  100
 
 
 int vibrate=0;
@@ -51,16 +50,12 @@ extern msm_ts_handler_t *msm_ts_handler_pad;
 
 static struct input_dev *msm_blackstone_pad_dev;
 
-static int pad_keymap[MSM_BLACKSTONE_PAD_NBUTTONS *2] =
+static int pad_keymap[MSM_BLACKSTONE_PAD_NBUTTONS] =
 {
 	KEY_F3,
 	KEY_MENU,
 	KEY_BACK,
 	KEY_F4,
-	KEY_F3,
-	KEY_MENU,
-	KEY_BACK,
-	KEY_F4
 };
 
 
@@ -78,67 +73,57 @@ void do_vibrate(void)
 
 int msm_blackstone_pad_handle_ts_event(int x, int y, int touched)
 {
-	/*irq_counter counts the amount of 
-	 * interrupt received until touched = false.
-	 * <100 interrupts means short press
-	 * on irq_counter = 100: long press
-	 * >100 do nothing                 */
-	static int irq_counter = 0;
+	/*button_pressed ensures, that the buttons
+	 * do not get pressed multiple times */
+	static bool button_pressed = false;
 	static int prev_button = -1;
 	int button;
 	
 	/* no touch button pressed*/
-	if (touched && !irq_counter && y<TP_Y_MAX)
+	if (touched && !button_pressed && y<TP_Y_MAX)
 		return 0;
-	
-	/*the user is touching the button longer than he should*/
-	if (touched && irq_counter>MSM_BLACKSTONE_PAD_LONG_PRESS_TIME)
-		return 1;
 		
+	/* the user moved his finger to somewhere else,
+	 * but he did not release it -> ignore the touch */
+	if (touched && button_pressed && prev_button==-1)
+		return 1;
+	
 	/*the user no loger touches the button
-	 * trigger short press (< 100 irq)
-	 * reset counter */
+	 * release the button*/
 	if (!touched) {
-		if (irq_counter && irq_counter<MSM_BLACKSTONE_PAD_LONG_PRESS_TIME && prev_button!=-1) {
-			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button], 1);
-			input_sync(msm_blackstone_pad_dev);
+		if (button_pressed && prev_button!=-1) {
 			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button], 0);
 			input_sync(msm_blackstone_pad_dev);
-			
-			mdelay(75);
 		}
-		irq_counter = 0;
+		button_pressed = false;
 		prev_button = -1;
 		return 1; 
 	}
 
-
 	button = x / MSM_BLACKSTONE_PAD_BWIDTH;
 	
 	/*first touch*/
-	if (touched && !irq_counter) {
+	if (touched && !button_pressed) {
+		input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[button], 1);
+		input_sync(msm_blackstone_pad_dev);
 		do_vibrate();
 		prev_button = button;
-		irq_counter++;
+		button_pressed = true;
 		return 1;
 	}
 	
 	/*the user is holding the button
 	 * check if he is still on the button
-	 * trigger long press event
-	 * button +4 is long press event*/
-	if (touched && irq_counter) {
-		if (button != prev_button || y!=TP_Y_MAX)	irq_counter = MSM_BLACKSTONE_PAD_LONG_PRESS_TIME +1;
-		else if (++irq_counter == MSM_BLACKSTONE_PAD_LONG_PRESS_TIME) {
-			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button +4], 1);
+	 * otherwise release the button */
+	if (touched && button_pressed) {
+		if (button != prev_button || y!=TP_Y_MAX) {
+			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button], 0);
 			input_sync(msm_blackstone_pad_dev);
-			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[prev_button +4], 0);
-			input_sync(msm_blackstone_pad_dev);
-			
-			do_vibrate();
+			prev_button = -1;
 		}
 		return 1;
 	}
+	
 	
 	return 0;
 }
