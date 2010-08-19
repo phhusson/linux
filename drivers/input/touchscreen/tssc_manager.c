@@ -135,6 +135,7 @@ struct tssc_manager_data {
 static long touch_sample_count = 0;
 static long touch_report_count = 0;
 static int touch_queue_index = 0;
+static bool first_touch = true;
 //static int disable_msm7225_irq_down = 0;
 
 int touch_queue_x[TOUCH_QUEUE_NUMBER];
@@ -164,14 +165,70 @@ module_param_named(debug, debug_tp, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 //----------------------------------------------
 
-static int touch_check_noise(int x, int x16, int y, int y16)
+/* The Touchscreen of Blackstone tends to track
+ * wrong data. We have to check the input to prevent 
+ * jumps across the screen */
+static int blackstone_noise_check(int x, int y, int p)
 {
+	#define MAX_JUMP 160
+	#define FIRST_JUMP 30
+	static int last_x = 0;
+	static int last_y = 0;
+	static int last_p = 0;
 
+	/* The first input often is far off. 
+	 * We ignore it*/
+	if (!touch_sample_count && first_touch) {
+		first_touch = false;
+		return 1;
+	}
+	
+	
+	/* the second input can also be off
+	 * this only happend when pressure is low
+	 * we replace the first input with the second one*/
+	if (touch_sample_count==1 && p==5) {
+		if (abs(x-touch_queue_x[0])>FIRST_JUMP || abs(y-touch_queue_y[0])>FIRST_JUMP) {
+			touch_queue_x[0] = x;
+			touch_queue_y[0] = y;
+			return 1;
+		}
+	}
+
+	/* even more jumps... */
+	if (touch_sample_count>1) {
+	/* jumps can be caused by significant changes in pressure */
+		if (p<100 || abs(last_p-p)>50) {
+			if (abs(x-last_x)>50 || abs(y-last_y)>50) {
+				return 1;
+			}
+		}
+		/* nobody can slide his finger faster than 160 units
+		 * per input. It has to be a jump */
+		if (abs(x-last_x)>MAX_JUMP || abs(y-last_y)>MAX_JUMP) {
+			return 1;
+		}
+	}
+	
+	last_x = x;
+	last_y = y;
+	last_p = p;
+	return 0;
+}
+
+
+static int touch_check_noise(int x, int x16, int y, int y16, int p)
+{
+    struct timespec ts;
+	struct rtc_time tm;
+	
 	int X_temp=abs(x-x16);
 	int Y_temp=abs(y-y16);
 
-    	struct timespec ts;
-    	struct rtc_time tm;
+	if(machine_is_htcblackstone()) 	
+		if (blackstone_noise_check(x,y,p))
+			return 1;
+		
 
 	if (x16>0 && y16>0) {
 		if ((X_temp>=XY_temp)||(Y_temp>=XY_temp)) {
@@ -198,7 +255,7 @@ static int touch_check_noise(int x, int x16, int y, int y16)
  */
 static int touch_add_queue(int x, int x16, int y, int y16,int p)
 {
-    	if(touch_check_noise(x, x16, y, y16))
+    	if(touch_check_noise(x, x16, y, y16, p))
     	{
     	    return 0;
     	}
@@ -285,7 +342,7 @@ static void touch_process_queue(struct input_dev *dev)
 
 	if (msm_ts_handler_pad) 
 		bspad = (*msm_ts_handler_pad)(x, y, 1);
-
+	
 	if (!bspad && x >= 0 && y >= 0) {
 		if(debug_tp & DEBUG_TP_ON) printk(KERN_DEBUG "touch_process_queue(): x=%d\t", x);
 	        input_report_abs(dev, ABS_X, x);
@@ -373,13 +430,13 @@ static int tssc_manager_polling_func(struct tssc_manager_data *ts)
 
 	tssc_reg->tssc_ctl.intr_flag1 = 0; /* Clear INTR_FLAG1 for next point */
 	tssc_reg->tssc_ctl.data_flag = 0; /* Clear DATA_FLAG for next point */
-
+	
 	if(debug_tp & DEBUG_TP_ON) printk(KERN_DEBUG "tssc_manager_polling_func(): ts->z1=%d ts->z2=%d\n", ts->z1, ts->z2);
 	if (ts->z1) {
 		pressure = (ts->x * ((ts->z2 * 100 / ts->z1) - 100)) / 900;
 		//pressure = 350 - pressure;
 		pressure = 270 - pressure;
-
+		
 		if (pressure <= 5)
 		    pressure = 5; /* Report all touch points */
 		else if (pressure > 255)
@@ -402,6 +459,7 @@ static int tssc_manager_polling_func(struct tssc_manager_data *ts)
 		touch_finish_queue(ts->input_dev);
 	    	//hrtimer_cancel(&ts->timer);
         	enable_irq(msm7225_irq_down);
+			first_touch=true;
         	return 1;
 	}
     	return 0;
