@@ -347,16 +347,13 @@ void micropklt_lcd_precess_spi_table(uint16_t spicmd, struct microp_spi_table *s
 	data = micropklt_t;
 	if (!data) return;
 
-	mdelay(0x32);
 
 	mutex_lock(&data->lock);
 
 	for(i = 0; i < count; i++) {
 		delay = spi_table[i].delay;
 		c0[0] = spicmd; c0[1] = spi_table[i].value1; c0[2] = spi_table[i].value2; c0[3] = spi_table[i].value3;
-		msleep(1);
 		micropklt_write(data->client, c0, ARRAY_SIZE(c0));
-		udelay(50);
 		if(delay)
 			msleep(delay);
 	}

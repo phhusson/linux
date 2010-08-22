@@ -180,11 +180,8 @@ static int htcblackstone_mddi_epson_panel_init(
 	*/
 	
 	if(!no_bkl_off) {
-		msleep(50);
 		micropklt_lcd_precess_cmd(c0, ARRAY_SIZE(c0));
-		msleep(50);
 		micropklt_lcd_precess_spi_table(MICROP_KLT_ID_SPILCMDDATA, spi_init_table, ARRAY_SIZE(spi_init_table));
-		msleep(50);
 	}
 	
 	client_data->auto_hibernate(client_data, 1);
