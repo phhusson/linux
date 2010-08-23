@@ -96,10 +96,16 @@ struct rpc_reply_hdr
 
 /* flags for msm_rpc_connect() */
 #define MSM_RPC_UNINTERRUPTIBLE 0x0001
+#define MSM_RPC_ENABLE_RECEIVE (0x10000)
 
 /* use IS_ERR() to check for failure */
 struct msm_rpc_endpoint *msm_rpc_open(void);
+/* Connect with the specified server version */
 struct msm_rpc_endpoint *msm_rpc_connect(uint32_t prog, uint32_t vers, unsigned flags);
+uint32_t msm_rpc_get_vers(struct msm_rpc_endpoint *ept);
+/* check if server version can handle client requested version */
+int msm_rpc_is_compatible_version(uint32_t server_version,
+				  uint32_t client_version);
 
 int msm_rpc_close(struct msm_rpc_endpoint *ept);
 int msm_rpc_write(struct msm_rpc_endpoint *ept,
