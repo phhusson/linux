@@ -435,13 +435,28 @@ static struct irq_chip msm_irq_chip = {
 	.set_type  = msm_irq_set_type,
 };
 
+static int msm_irq_get_type(unsigned int irq) {
+	unsigned treg = VIC_INT_TYPE0 + ((irq & 32) ? 4 : 0);
+	int b = 1 << (irq & 31);
+	if(irq==INT_ADSP_A11 || irq==INT_GRAPHICS) return 0;	
+	if(readl(treg)&b) return 1;
+	return 0;
+}
 void __init msm_init_irq(void)
 {
 	unsigned n;
 
+	writel(0xffffffff, VIC_INT_ENCLEAR0);
+	writel(0xffffffff, VIC_INT_ENCLEAR0);	
+	/* disable all INTs */
+	writel(0, VIC_INT_EN0);
+	writel(0, VIC_INT_EN1);
+	/* clear interrupts */
+	writel(0xffffffff, VIC_INT_CLEAR0);
+	writel(0xffffffff, VIC_INT_CLEAR1);
 	/* select level interrupts */
-	writel(0, VIC_INT_TYPE0);
-	writel(0, VIC_INT_TYPE1);
+	writel(0xf5e401ff, VIC_INT_TYPE0);
+	writel(0x3c, VIC_INT_TYPE1);
 
 	/* select highlevel interrupts */
 	writel(0, VIC_INT_POLARITY0);
@@ -451,13 +466,6 @@ void __init msm_init_irq(void)
 	writel(0, VIC_INT_SELECT0);
 	writel(0, VIC_INT_SELECT1);
 
-	/* clear interrupts */
-	writel(0xffffffff, VIC_INT_CLEAR0);
-	writel(0xffffffff, VIC_INT_CLEAR1);
-
-	/* disable all INTs */
-	writel(0, VIC_INT_EN0);
-	writel(0, VIC_INT_EN1);
 
 	/* don't use 1136 vic */
 	writel(0, VIC_CONFIG);
@@ -465,9 +473,17 @@ void __init msm_init_irq(void)
 	/* enable interrupt controller */
 	writel(3, VIC_INT_MASTEREN);
 
+	msm_irq_shadow_reg[0].int_type=readl(VIC_INT_TYPE0);
+	msm_irq_shadow_reg[1].int_type=readl(VIC_INT_TYPE1);
+
 	for (n = 0; n < NR_MSM_IRQS; n++) {
 		set_irq_chip(n, &msm_irq_chip);
-		set_irq_handler(n, handle_level_irq);
+		//et_irq_handler(n, handle_level_irq);
+		if(msm_irq_get_type(n))
+			set_irq_handler(n, handle_edge_irq);
+		else
+			set_irq_handler(n, handle_level_irq);
+
 /* TODO */
 #if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
 		if (n == INT_DEBUG_TIMER_EXP) {

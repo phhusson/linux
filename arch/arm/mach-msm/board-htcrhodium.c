@@ -112,19 +112,16 @@ static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
 };
 #endif
 
-static int usb_phy_init_seq_raph100[] = {
-	0x40, 0x31, /* Leave this pair out for USB Host Mode */
-	0x1D, 0x0D,
-	0x1D, 0x10,
-	-1
-};
+static int usb_phy_init_seq_raph100[] = { 0x40, 0x31,0x1, 0x0D,0x1, 0x10,-1 };
 
 static void usb_phy_reset(void)
 {
-	gpio_set_value(0x64, 0);
-	mdelay(1);
+
+	gpio_set_value(0x64, 0); 
+	mdelay(10);
 	gpio_set_value(0x64, 1);
-	mdelay(3);
+	mdelay(10);
+
 }
 
 static struct platform_device raphael_rfkill = {
@@ -252,7 +249,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
 #endif
-	&rhod_prox,
+	// &rhod_prox,	
 #ifdef CONFIG_HTC_HEADSET
 	&rhodium_h2w,
 #endif
@@ -332,6 +329,7 @@ static smem_batt_t msm_battery_pdata = {
 	.smem_field_size = 4,
 };
 
+
 static void __init halibut_init(void)
 {
 	int i;
@@ -340,21 +338,31 @@ static void __init halibut_init(void)
 	htcrhodium_device_specific_fixes();
 
 	msm_acpu_clock_init(&halibut_clock_data);
+
+
 	msm_proc_comm_wince_init();
 
+
+
 	msm_hw_reset_hook = htcraphael_reset;
+
+
 
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
 	
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
-	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
+	
+	//msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
+
 	init_mmc();
+
+
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
 #endif
-	msm_init_pmic_vibrator();
+
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
 	 * For now we just declare that VBUS is present at boot and USB
@@ -362,6 +370,7 @@ static void __init halibut_init(void)
 	 */
 	msm_hsusb_set_vbus_state(1);
 
+	msm_init_pmic_vibrator();
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {
 		blac_set_vibrate(1);
@@ -369,11 +378,14 @@ static void __init halibut_init(void)
 		blac_set_vibrate(0);
 		mdelay(75);
 	}
+	
+
 }
 
 static void __init halibut_map_io(void)
 {
 	msm_map_common_io();
+	mdelay(5000);
 	msm_clock_init();
 }
 
