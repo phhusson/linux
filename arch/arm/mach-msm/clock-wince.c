@@ -835,6 +835,12 @@ static int __init clock_late_init(void)
 	unsigned long flags;
 	struct clk *clk;
 	unsigned count = 0;
+	// reset imem config, I guess all devices need this so somewhere here would be good.
+	// it needs to be moved to somewhere else.
+	// note: this needs to be done before all clocks get disabled.
+	writel( 0, MSM_IMEM_BASE );
+	pr_info("reset imem_config\n");
+	get_clk_khz();
 
 	mutex_lock(&clocks_mutex);
 	list_for_each_entry(clk, &clocks, list) {
