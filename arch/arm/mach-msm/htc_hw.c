@@ -75,10 +75,29 @@ static ssize_t vibrate_store(struct class *class, const char *buf, size_t count)
 	return count;
 }
 
+int is_cdma(void)
+{
+	char amss_dump[20];
+	char *dot1;
+
+	*(unsigned int *) (amss_dump + 0x0) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x0);
+	*(unsigned int *) (amss_dump + 0x4) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x4);
+	*(unsigned int *) (amss_dump + 0x8) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x8);
+	*(unsigned int *) (amss_dump + 0xc) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0xc);
+	*(unsigned int *) (amss_dump + 0x10) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x10);
+	amss_dump[19] = '\0';
+
+	dot1 = strchr(amss_dump, '.');
+	if(dot1 == NULL) {	// CDMA
+		return 1;
+	}
+	return 0;
+}
+
 static ssize_t radio_show(struct class *class, char *buf)
 {
-	char *radio_type = ((machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) || 
-	                    machine_is_htcdiamond_cdma() || force_cdma) ? "CDMA" : "GSM";
+	char *radio_type = (machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() || 
+	                    machine_is_htcdiamond_cdma() || force_cdma || is_cdma()) ? "CDMA" : "GSM";
 	return sprintf(buf, "%s\n", radio_type);
 }
 
@@ -87,7 +106,7 @@ static ssize_t machtype_show(struct class *class, char *buf)
 	return sprintf(buf, "%d\n", machine_arch_type);
 }
 
-extern unsigned int __amss_version; // amss_para.c
+extern unsigned int __amss_version; // amss_para.cwhere
 static ssize_t amss_show(struct class *class, char *buf)
 {
 	return sprintf(buf, "%d\n", __amss_version);

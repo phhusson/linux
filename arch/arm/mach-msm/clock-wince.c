@@ -877,9 +877,11 @@ amss_s_version = get_amss_s_version();
 	switch(amss_s_version) {
 		case 6125:
 			msm_clock_parameters = msm_clock_parameters_6125;
+			printk(KERN_ERR "amss: Using 6125 clocks");
 		break;
 		default:
-			msm_clock_parameters = msm_clock_parameters_def; //woz -- 6125 was def
+			msm_clock_parameters = msm_clock_parameters_def;
+			printk(KERN_ERR "amss: Using default clocks");
 		break;
 	}
 	

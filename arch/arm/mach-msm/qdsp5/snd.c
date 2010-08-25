@@ -347,7 +347,7 @@ static int snd_release(struct inode *inode, struct file *file)
 }
 
 int snd_ini() {
-	enable_adc3001();
+	//enable_adc3001();
 	enable_speaker();
 	struct snd_ctxt *snd = &the_snd;
 	int rc = 0;
