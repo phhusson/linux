@@ -46,10 +46,7 @@ void enable_speaker(void) {
 			break;
 		case MACH_TYPE_HTCRHODIUM:
 			//Needs userland fix
-			if(force_rhod_speaker)
-				enable_speaker_rhod();
-			else
-				disable_speaker_rhod();
+			enable_speaker_rhod();
 			break;
 		case MACH_TYPE_HTCKOVSKY:
 			gpio_configure(0x41, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);

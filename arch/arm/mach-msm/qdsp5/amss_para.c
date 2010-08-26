@@ -54,7 +54,7 @@ struct amss_value amss_def_para[] = {
 // Now the version spezificly values
 struct amss_value amss_6125_para[] = {
 	{AUDMGR_PROG_VERS,0, "rs30000013:00000000"},  
-	{AUDMGR_VERS, 0x12345678, ""}, /* TODO: Disabled with wrong version, Sould be 0x0, Kills Topaz Call */ 
+	{AUDMGR_VERS, 0x0, ""}, /* TODO: Disabled with wrong version, Sould be 0x0, Kills Topaz Call */ 
 	{AUDMGR_CB_PROG_VERS,0, "rs31000013:00000000"},  
 	{AUDMGR_CB_VERS, 0x00000000, ""},  
 	{PM_LIBVERS, 0x0, ""},  
