@@ -106,7 +106,7 @@ static ssize_t machtype_show(struct class *class, char *buf)
 	return sprintf(buf, "%d\n", machine_arch_type);
 }
 
-extern unsigned int __amss_version; // amss_para.cwhere
+extern unsigned int __amss_version; // amss_para.c
 static ssize_t amss_show(struct class *class, char *buf)
 {
 	return sprintf(buf, "%d\n", __amss_version);

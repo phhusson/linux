@@ -337,16 +337,14 @@ static void __init halibut_init(void)
 	// Fix data in arrays depending on GSM/CDMA version
 	htcrhodium_device_specific_fixes();
 
-	msm_acpu_clock_init(&halibut_clock_data);
+	mdelay(5000);
+	msm_clock_init();
 
+	msm_acpu_clock_init(&halibut_clock_data);
 
 	msm_proc_comm_wince_init();
 
-
-
 	msm_hw_reset_hook = htcraphael_reset;
-
-
 
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
@@ -385,8 +383,7 @@ static void __init halibut_init(void)
 static void __init halibut_map_io(void)
 {
 	msm_map_common_io();
-	mdelay(5000);
-	msm_clock_init();
+
 }
 
 static void __init htcrhodium_fixup(struct machine_desc *desc, struct tag *tags,
