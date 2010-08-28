@@ -42,8 +42,8 @@ obj-$(CONFIG_MACH_HTCDIAMOND_CDMA) += board-htcdiamond.o board-htcraphael-navi.o
 obj-$(CONFIG_MACH_HTCBLACKSTONE) += board-htcblackstone.o board-htcblackstone-panel.o htc_wifi_nvs.o mmc.o  pmem.o
 obj-$(CONFIG_MACH_HTCBLACKSTONE) += msm_vibrator.o msm-gpio-keys.o htc_acoustic.o
 
-obj-$(CONFIG_MACH_HTCKOVSKY) += board-htckovsky.o board-htcblackstone-panel.o htc_wifi_nvs.o mmc.o pmem.o
-obj-$(CONFIG_MACH_HTCVENUS) += msm_vibrator.o msm-gpio-keys.o htc_acoustic.o
+obj-$(CONFIG_MACH_HTCKOVSKY) += board-htckovsky.o board-htckovsky-panel.o htc_wifi_nvs.o mmc.o pmem.o
+obj-$(CONFIG_MACH_HTCKOVSKY) += msm_vibrator.o msm-gpio-keys.o htc_acoustic.o
 obj-$(CONFIG_MACH_HTCTOPAZ) += board-htctopaz.o board-htctopaz-panel.o board-htctopaz-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o msm-gpio-keys.o htc_acoustic.o
 obj-$(CONFIG_MACH_HTCRHODIUM) += board-htcrhodium.o board-htctopaz-panel.o board-htcrhodium-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o htc_acoustic.o msm-gpio-keys.o board-htcrhodium-audio.o
 obj-$(CONFIG_MACH_HTCRHODIUM) += board-htcrhodium-proximity.o

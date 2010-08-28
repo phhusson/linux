@@ -244,7 +244,7 @@ printk("mddi_epson_probe\n");
 
 #if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
        /* mddi_remote_write(mddi, 0, WAKEUP); */
-	if(machine_is_htcblackstone() || machine_is_htckovsky()) {
+	if(machine_is_htcblackstone()) {
 	       client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
 	       client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
 
