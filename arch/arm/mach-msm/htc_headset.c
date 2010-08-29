@@ -1072,6 +1072,8 @@ static irqreturn_t button_35mm_irq_handler(int irq, void *dev_id)
 
 int headset_plugged(void)
 {
+	if(!hi)
+		return 0;
 	int ret = switch_get_state(&hi->sdev) == H2W_HTC_HEADSET;
 	printk(KERN_INFO "[H2W] headset present? %d\n", ret);
 	return ret;
