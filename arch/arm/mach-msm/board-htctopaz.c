@@ -147,13 +147,15 @@ static struct h2w_platform_data topaz_h2w_data = {
 	.h2w_clk                = TOPA100_H2W_CLK,
 	.h2w_data               = TOPA100_H2W_DATA,
 	.debug_uart             = H2W_UART3,
-	//.config_cpld            = h2w_config_cpld,
+	.config_cpld            = h2w_config_cpld,
 	.init_cpld              = h2w_init_cpld,
 	.headset_mic_35mm       = TOPA100_AUD_HSMIC_DET_N,
 };
 
 static void h2w_config_cpld(int route)
 {
+	printk(KERN_INFO "htctopaz %s: route=%d TODO\n",
+		__func__, route);
 	switch (route) {
 		case H2W_UART3:
 			//gpio_set_value(0, 1); 	/*TODO wrong GPIO*/
@@ -167,7 +169,7 @@ static void h2w_config_cpld(int route)
 
 static void h2w_init_cpld(void)
 {
-	//h2w_config_cpld(H2W_UART3);
+	h2w_config_cpld(H2W_UART3);
 	gpio_set_value(topaz_h2w_data.h2w_clk, 0);
 	gpio_set_value(topaz_h2w_data.h2w_data, 0);
 }
@@ -200,7 +202,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&topaz_snd,		
 #ifdef CONFIG_HTC_HEADSET
-	//&topaz_h2w,		/*TODO we need working sound as first*/
+	&topaz_h2w,
 #endif
 	&topaz_bt_rfkill,
 	&touchscreen,
