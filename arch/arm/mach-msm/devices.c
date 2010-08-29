@@ -738,8 +738,8 @@ struct platform_device msm_device_htc_battery = {
 static int mono_die;
 int __init parse_tag_monodie(const struct tag *tags)
 {
-	struct tag *t = (struct tag *)tags;
 #if 0
+	struct tag *t = (struct tag *)tags;
 	int find = 0;
 	for (; t->hdr.size; t = tag_next(t)) {
 		if (t->hdr.tag == ATAG_MONODIE) {
@@ -754,32 +754,31 @@ int __init parse_tag_monodie(const struct tag *tags)
 	printk(KERN_DEBUG "parse_tag_monodie: mono-die = 0x%x\n", mono_die);
 	return mono_die;
 #endif
+	int skuid_pcba;
+
 	// restrict to htctopaz for now
 	if (!machine_is_htctopaz())
 		return mono_die;
 
-	// We don't get ATAG_MONODIE passed from HaRET, but ATAG_MEM.
-	// On "old" dualdie htctopaz, HaRET reports 0x05100000 (81MB).
-	// On "newer" monodie htctopaz HaRET gathers 0x10000000 (256MB)
-	// from WinCE. This isn't the most failure-proof method, but
-	// helps dynamically performing the memory setup for now.
-#if 0
-	// breaks on some newer topa100/210 with dual die
-	// looking for a better solution; perhaps providing better physmem
-	// info via HaRET gathered from OEMAddressTable (if accessible)
-	for (; t->hdr.size; t = tag_next(t)) {
-		if (t->hdr.tag == ATAG_MEM && t->u.mem.size == 0x10000000) {
-			mono_die = 1;
-			break;
-		}
-	}
-#endif
-	for (; t->hdr.size; t = tag_next(t)) {
-		if (t->hdr.tag == ATAG_MEM) {
-			printk(KERN_DEBUG "%s: ATAG_MEM start=0x%x size=0x%x\n",
-				__func__, t->u.mem.start, t->u.mem.size);
-		}
-	}
+	/* Dynamic memory die detection.
+	 * We can't use:
+	 * - HaRET's passed ATAG_MEM as it is just one entry and too
+	 *   uninformal as of (2010-08-29) (option would be to locate and
+	 *   and parse OEMAddressTable dynamically
+	 * - SMEM PCB XC (base+0xfc048) or PCB ID (base+0xfc0ef >> 24)
+	 *   as all values are identical for dualdie and monodie
+	 *   pcb_xc 0x1ffc048=0x00000001
+	 *   pcb_id 0x1ffc0ef=0x00000000
+	 * We use:
+	 * - SKUID of PCBA at phys 0x081C00
+	 *   dualdie: 0x050001ed
+	 *   monodie: 0x190001ed
+	 */
+	skuid_pcba = readl(0x00081c00);
+
+	printk(KERN_DEBUG "%s: SKUID_PCBA=0x%08x\n", __func__, skuid_pcba);
+
+	mono_die = skuid_pcba == 0x190001ed;
 
 	printk(KERN_DEBUG "%s: mono-die = 0x%x\n", __func__, mono_die);
 	return mono_die;
