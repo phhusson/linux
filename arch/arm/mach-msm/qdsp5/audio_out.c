@@ -32,6 +32,7 @@
 #include <asm/atomic.h>
 #include <asm/ioctls.h>
 #include <mach/msm_adsp.h>
+#include <mach/htc_headset.h>
 
 #include "audmgr.h"
 
@@ -218,6 +219,9 @@ static int audio_dsp_set_rx_iir(struct audio *audio);
 
 static void audio_dsp_event(void *private, unsigned id, uint16_t *msg);
 
+void disable_speaker_rhod(void);
+void enable_speaker_rhod(void);
+
 /* must be called with audio->lock held */
 static int audio_enable(struct audio *audio)
 {
@@ -260,6 +264,8 @@ static int audio_enable(struct audio *audio)
 	}
 
 	audio->enabled = 1;
+	if(!headset_plugged())
+		enable_speaker_rhod();
 	htc_pwrsink_set(PWRSINK_AUDIO, 100);
 	return 0;
 }
@@ -278,6 +284,7 @@ static int audio_disable(struct audio *audio)
 		audmgr_disable(&audio->audmgr);
 		audio->out_needed = 0;
 		audio_allow_sleep(audio);
+		disable_speaker_rhod();
 	}
 	return 0;
 }

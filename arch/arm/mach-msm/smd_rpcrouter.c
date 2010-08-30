@@ -1,4 +1,3 @@
-
 /* arch/arm/mach-msm/smd_rpcrouter.c
  *
  * Copyright (C) 2007 Google, Inc.
@@ -55,6 +54,7 @@
 #define DUMP_ALL_RECEIVED_HEADERS 1
 
 #define DIAG(x...) printk("[RR] ERROR " x)
+#define MSM_RPC_ENABLE_RECEIVE (0x10000)
 
 #if MSM_RPCROUTER_DEBUG
  #define D(x...) printk(x)
@@ -713,7 +713,7 @@ static void do_read_data(struct work_struct *work)
 
 packet_complete:
 	spin_lock_irqsave(&ept->read_q_lock, flags);
-	if (ept->flags & MSM_RPC_ENABLE_RECEIVE) {
+	if (1) { //if (ept->flags & MSM_RPC_ENABLE_RECEIVE) {
 		wake_lock(&ept->read_q_wake_lock);
 		list_add_tail(&pkt->list, &ept->read_q);
 		wake_up(&ept->wait_q);

@@ -101,8 +101,6 @@ struct snd_set_volume_msg {
 
 struct snd_endpoint *get_snd_endpoints(int *size);
 
-void enable_adc3001();
-
 static inline int check_mute(int mute)
 {
 	return (mute == SND_MUTE_MUTED ||
@@ -283,6 +281,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			case MACH_TYPE_HTCDIAMOND:
 			case MACH_TYPE_HTCBLACKSTONE:
 			case MACH_TYPE_HTCRAPHAEL_CDMA:
+			case MACH_TYPE_HTCRAPHAEL_CDMA500:
 				pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0xd\n", current->comm, vol.device);
 				vol.device = 0xd;
 				break;
@@ -314,7 +313,6 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 					
 	case SND_GET_NUM_ENDPOINTS:
-		pr_err("snd_ioctl get num endpoint\n");
 		if (copy_to_user((void __user *)arg,
 				&snd->snd_epts->num, sizeof(unsigned))) {
 			pr_err("snd_ioctl get endpoint: invalid pointer.\n");
@@ -347,8 +345,7 @@ static int snd_release(struct inode *inode, struct file *file)
 }
 
 int snd_ini() {
-	//enable_adc3001();
-	enable_speaker();
+
 	struct snd_ctxt *snd = &the_snd;
 	int rc = 0;
 
@@ -378,15 +375,13 @@ err:
 
 static int snd_open(struct inode *inode, struct file *file)
 {
-	pr_err("snd: opened\n");
 	int rc = 0;
 	struct snd_ctxt *snd = &the_snd;
 	rc = snd_ini();
-//	if(rc)
-//		return rc;
+	if(rc)
+		return rc;
 	file->private_data=snd;
-//	return rc;
-	return 0;
+	return rc;
 }
 
 static struct file_operations snd_fops = {
@@ -407,8 +402,6 @@ static int snd_probe(struct platform_device *pdev)
 	struct snd_ctxt *snd = &the_snd;
 	mutex_init(&snd->lock);
 	snd->snd_epts = (struct msm_snd_endpoints *)pdev->dev.platform_data;
-	snd->opened = 0;
-	pr_err("snd: registered\n");
 	return misc_register(&snd_misc);
 }
 

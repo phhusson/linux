@@ -413,6 +413,75 @@ static int micropklt_remove(struct i2c_client *client)
 	return 0;
 }
 
+void init_mic()
+{
+
+	struct microp_klt *data;
+	struct i2c_client *client;
+	uint8_t buffer[5] = { 0, 0, 0, 0, 0 };
+
+	data = micropklt_t;
+	if (!data) return;
+	client = data->client;
+
+	printk(KERN_INFO MODULE_NAME ": Sending mic init\n");
+
+	uint8_t buf[5];
+/*	buf[0] = 0x50;
+	buf[1] = 0;
+	buf[2] = 0;
+	buf[3] = 0;
+	buf[4] = 0;
+	micropklt_write(client, buf, 5);
+
+	buf[1] = 0x2;
+	buf[3] = 0xff;
+	buf[4] = 0xff;
+	micropklt_write(client, buf, 5);
+
+	buf[0] = 0x25;
+	buf[1] = 0x04;
+	micropklt_write(client, buf, 2);
+
+	buf[1] = 0x14;
+	micropklt_write(client, buf, 2);
+
+	buf[1] = 0x04;
+	micropklt_write(client, buf, 2);*/
+
+	buf[0] = 0x25;
+	buf[1] = 0x40;
+	micropklt_write(client, buf, 2);
+
+	buf[1] = 0x44;
+	micropklt_write(client, buf, 2);
+}
+
+EXPORT_SYMBOL(init_mic);
+
+
+void init_mic_post_adc()
+{
+
+	struct microp_klt *data;
+	struct i2c_client *client;
+	uint8_t buffer[5] = { 0, 0, 0, 0, 0 };
+
+	data = micropklt_t;
+	if (!data) return;
+	client = data->client;
+
+	printk(KERN_INFO MODULE_NAME ": Sending mic init\n");
+
+	uint8_t buf[5];
+
+	buf[0] = 0x25;
+	buf[1] = 0x40;
+	micropklt_write(client, buf, 2);
+}
+
+EXPORT_SYMBOL(init_mic_post_adc);
+
 static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct microp_klt *data;
@@ -601,6 +670,12 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		register_early_suspend(&data->early_suspend);
 	}
 	#endif
+
+	if (machine_is_htcrhodium())
+	{
+		//init dual mic
+		//init_mic(client);
+	}
 
 	printk(KERN_INFO MODULE_NAME ": Initialized MicroP-LED chip revision v%04x\n", data->version);
 

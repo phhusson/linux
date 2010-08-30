@@ -77,6 +77,8 @@ static ssize_t vibrate_store(struct class *class, const char *buf, size_t count)
 
 int is_cdma(void)
 {
+	printk(KERN_ERR "Checking for CDMA\n");
+
 	char amss_dump[20];
 	char *dot1;
 

@@ -1,7 +1,7 @@
 /* arch/arm/mach-msm/clock.c
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007 QUALCOMM Incorporatedis 
+ * Copyright (c) 2007 QUALCOMM Incorporated
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -210,10 +210,10 @@ static struct msm_clock_params msm_clock_parameters_def[] = {
 //	{ .clk_id = UART1_CLK,		.offset = 0xe0,	.ns_only = 0xa00,	.name=	"UART1_CLK"},
 };
 
-
+/*
 static struct msm_clock_params msm_clock_parameters_6125[] = {
 	// Full ena/md/ns clock
-	{ .clk_id = SDC1_CLK,		.idx =  7, .offset = 0xa4,	.ns_only = 0x44,	.name="SDC1_CLK",},
+	{ .clk_id = SDC1_CLK,		.idx =  7, .offset = 0xa4,				.name="SDC1_CLK",},
 	{ .clk_id = SDC2_CLK,		.idx =  8, .offset = 0xac,	.ns_only = 0xB44,	.name="SDC2_CLK",},
 	{ .clk_id = SDC3_CLK,		.idx = 27, .offset = 0xb4,	.ns_only = 0x5C,	.name="SDC3_CLK",},
 	{ .clk_id = SDC4_CLK,		.idx = 28, .offset = 0xbc,	.ns_only = 0x5C,	.name="SDC4_CLK",},
@@ -234,7 +234,7 @@ static struct msm_clock_params msm_clock_parameters_6125[] = {
 	{ .clk_id = VFE_MDC_CLK,		   .offset = 0x44,	.ns_only = (1<<11),	.name="VFE_MDC_CLK", },
 
 	// Enable bit only; bit = 1U << idx
-	{ .clk_id = MDP_CLK,		.idx = 9,	.name="MDP_CLK",},
+	{ .clk_id = MDP_CLK,		.idx = 9,						.name="MDP_CLK",},
 	
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
 	{ .clk_id = GP_CLK,			   .offset = 0x5c,	.ns_only = 0x000,	.name="GP_CLK" },
@@ -250,8 +250,9 @@ static struct msm_clock_params msm_clock_parameters_6125[] = {
 //	{ .clk_id = SDC3_PCLK,		.idx = 27, 	.name="SDC3_PCLK",},
 //	{ .clk_id = SDC4_PCLK,		.idx = 28, 	.name="SDC4_PCLK",},	
 };
+*/
 
-/*orig clocks
+//orig clocks
 static struct msm_clock_params msm_clock_parameters_6125[] = {
 	// Full ena/md/ns clock
 	{ .clk_id = SDC1_CLK,		.idx =  7,	.offset = 0xa4,	.name="SDC1_CLK",},
@@ -284,7 +285,7 @@ static struct msm_clock_params msm_clock_parameters_6125[] = {
 	{ .clk_id = I2C_CLK,		.offset = 0x68,	.ns_only = 0xa00,.name="I2C_CLK"},
 //	{ .clk_id = UART1_CLK,		.offset = 0xe0,	.ns_only = 0xa00,.name="UART1_CLK"},
 };
-*/
+
 
 static struct msm_clock_params* msm_clock_parameters;
 
@@ -609,7 +610,7 @@ static int pc_clk_enable(uint32_t id)
 
 	if ( id == IMEM_CLK || id == GRP_CLK )
 	{
-		clock_poop( 0 );		
+		//clock_poop( 0 );		
 		set_grp_clk( 1 );
 		//writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
 		done=1;
@@ -877,11 +878,11 @@ amss_s_version = get_amss_s_version();
 	switch(amss_s_version) {
 		case 6125:
 			msm_clock_parameters = msm_clock_parameters_6125;
-			printk(KERN_ERR "amss: Using 6125 clocks");
+			printk(KERN_ERR "amss: Using 6125 clocks\n");
 		break;
 		default:
 			msm_clock_parameters = msm_clock_parameters_def;
-			printk(KERN_ERR "amss: Using default clocks");
+			printk(KERN_ERR "amss: Using default clocks\n");
 		break;
 	}
 	

@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm/qdsp5/adsp_6120.h
+/* arch/arm/mach-msm/qdsp5/adsp_6125.h
  *
  * Copyright (c) 2008 QUALCOMM Incorporated.
  *

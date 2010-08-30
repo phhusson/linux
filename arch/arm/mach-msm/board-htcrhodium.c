@@ -334,11 +334,13 @@ static void __init halibut_init(void)
 {
 	int i;
 
+	mdelay(6000);
+	msm_clock_init();
+
 	// Fix data in arrays depending on GSM/CDMA version
 	htcrhodium_device_specific_fixes();
 
-	mdelay(5000);
-	msm_clock_init();
+
 
 	msm_acpu_clock_init(&halibut_clock_data);
 

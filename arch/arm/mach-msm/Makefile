@@ -1,3 +1,4 @@
+obj-y += initsnd_dev.o
 obj-y += io.o idle.o irq.o timer.o dma.o memory.o
 obj-y += devices.o
 obj-$(CONFIG_MSM_AMSS_VERSION_5200) += proc_comm_wince.o
