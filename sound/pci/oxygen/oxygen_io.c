@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <sound/core.h>
+#include <sound/mpu401.h>
 #include <asm/io.h>
 #include "oxygen.h"
 
@@ -214,8 +215,17 @@ EXPORT_SYMBOL(oxygen_write_spi);
 
 void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data)
 {
+	unsigned long timeout;
+
 	/* should not need more than about 300 us */
-	msleep(1);
+	timeout = jiffies + msecs_to_jiffies(1);
+	do {
+		if (!(oxygen_read16(chip, OXYGEN_2WIRE_BUS_STATUS)
+		      & OXYGEN_2WIRE_BUSY))
+			break;
+		udelay(1);
+		cond_resched();
+	} while (time_after_eq(timeout, jiffies));
 
 	oxygen_write8(chip, OXYGEN_2WIRE_MAP, map);
 	oxygen_write8(chip, OXYGEN_2WIRE_DATA, data);
@@ -223,3 +233,24 @@ void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data)
 		      device | OXYGEN_2WIRE_DIR_WRITE);
 }
 EXPORT_SYMBOL(oxygen_write_i2c);
+
+static void _write_uart(struct oxygen *chip, unsigned int port, u8 data)
+{
+	if (oxygen_read8(chip, OXYGEN_MPU401 + 1) & MPU401_TX_FULL)
+		msleep(1);
+	oxygen_write8(chip, OXYGEN_MPU401 + port, data);
+}
+
+void oxygen_reset_uart(struct oxygen *chip)
+{
+	_write_uart(chip, 1, MPU401_RESET);
+	msleep(1); /* wait for ACK */
+	_write_uart(chip, 1, MPU401_ENTER_UART);
+}
+EXPORT_SYMBOL(oxygen_reset_uart);
+
+void oxygen_write_uart(struct oxygen *chip, u8 data)
+{
+	_write_uart(chip, 0, data);
+}
+EXPORT_SYMBOL(oxygen_write_uart);

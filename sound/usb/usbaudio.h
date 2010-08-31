@@ -153,14 +153,15 @@ enum quirk_type {
 	QUIRK_MIDI_YAMAHA,
 	QUIRK_MIDI_MIDIMAN,
 	QUIRK_MIDI_NOVATION,
-	QUIRK_MIDI_FASTLANE,
+	QUIRK_MIDI_RAW,
 	QUIRK_MIDI_EMAGIC,
 	QUIRK_MIDI_CME,
+	QUIRK_MIDI_US122L,
 	QUIRK_AUDIO_STANDARD_INTERFACE,
 	QUIRK_AUDIO_FIXED_ENDPOINT,
-	QUIRK_AUDIO_EDIROL_UA700_UA25,
 	QUIRK_AUDIO_EDIROL_UA1000,
 	QUIRK_AUDIO_EDIROL_UA101,
+	QUIRK_AUDIO_EDIROL_UAXX,
 
 	QUIRK_TYPE_COUNT
 };
@@ -209,7 +210,7 @@ struct snd_usb_midi_endpoint_info {
 /*
  */
 
-#define combine_word(s)    ((*(s)) | ((unsigned int)(s)[1] << 8))
+#define combine_word(s)    ((*s) | ((unsigned int)(s)[1] << 8))
 #define combine_triple(s)  (combine_word(s) | ((unsigned int)(s)[2] << 16))
 #define combine_quad(s)    (combine_triple(s) | ((unsigned int)(s)[3] << 24))
 
@@ -222,7 +223,8 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe,
 		    __u8 request, __u8 requesttype, __u16 value, __u16 index,
 		    void *data, __u16 size, int timeout);
 
-int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif);
+int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
+			 int ignore_error);
 void snd_usb_mixer_disconnect(struct list_head *p);
 
 int snd_usb_create_midi_interface(struct snd_usb_audio *chip, struct usb_interface *iface,
