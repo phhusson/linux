@@ -80,7 +80,7 @@ int turn_mic_bias_on(int on)
 
 	printk("acoustic dump: you know you want it\n");
 	printk("unsigned int audparms[] = {\n");
-
+/*
 	for(i=0; i < 1024; i++)
 	{
 		if(i%5==0)
@@ -89,7 +89,7 @@ int turn_mic_bias_on(int on)
 		if(i%5==4)
 			printk("\n");
 	}
-
+*/
 	unsigned int audparms[] = {0x301000E1,0x00000001,0x00000001,0x00000000,0x00000000,
 				0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
 				0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
@@ -149,11 +149,26 @@ int turn_mic_bias_on(int on)
 	dex.cmd=PCOM_UPDATE_AUDIO;
 	dex.has_data=1;
 
+	printk("MICDUMP: 0x%8.8X, 0x%8.8X, 0x%8.8X\n",
+		*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset),
+		*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x4),
+		*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x8));
+
 	/*  enable handset mic */
-	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0xffff0080 | (on?0x100:0);
-	//*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0x93009307;
-	//*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x4)=0x93019307;
-	//*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x8)=0xFFFF0000;
+//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0xffff0080 | (on?0x100:0);
+//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+4)=0;
+//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+8)=0;
+	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0x07930093;
+	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x4)=0x07930193;
+	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x8)=0x0000FFFF;
+
+	printk("ADIEDUMP: 0x%8.8X, 0x%8.8X\n",
+		*(unsigned *)(MSM_SHARED_RAM_BASE+0xfc0b8),
+		*(unsigned *)(MSM_SHARED_RAM_BASE+0xfc0d0));
+
+
+	*(unsigned *)(MSM_SHARED_RAM_BASE+0xfc0b8)=0x00000073;//Some kind of PLL
+	*(unsigned *)(MSM_SHARED_RAM_BASE+0xfc0d0)=0x40000004;//ADIE update
 
 	dex.data=0x10;
 	msm_proc_comm_wince(&dex,0);
