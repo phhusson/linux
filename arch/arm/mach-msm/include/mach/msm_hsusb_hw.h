@@ -51,6 +51,10 @@
 #define USB_HWDEVICE         (MSM_USB_BASE + 0x000C)
 #define USB_HWTXBUF          (MSM_USB_BASE + 0x0010)
 #define USB_HWRXBUF          (MSM_USB_BASE + 0x0014)
+/* ACL */
+#define USB_AHBBURST         (MSM_USB_BASE + 0x0090)
+#define USB_AHBMODE          (MSM_USB_BASE + 0x0098)
+/* ACL */
 #define USB_SBUSCFG          (MSM_USB_BASE + 0x0090)
 
 #define USB_CAPLENGTH        (MSM_USB_BASE + 0x0100) /* 8 bit */
@@ -187,6 +191,35 @@ struct ept_queue_item {
 #define PORTSC_PSPD_LS        (1 << 26)
 #define PORTSC_PSPD_HS        (2 << 26)
 #define PORTSC_PSPD_MASK      (3 << 26)
+/* ACL START */
+#define OTGSC_BSVIE            (1 << 27) /* R/W - BSV Interrupt Enable */
+#define OTGSC_DPIE             (1 << 30) /* R/W - DataPulse Interrupt Enable */
+#define OTGSC_1MSE             (1 << 29) /* R/W - 1ms Interrupt Enable */
+#define OTGSC_BSEIE            (1 << 28) /* R/W - BSE Interrupt Enable */
+#define OTGSC_ASVIE            (1 << 26) /* R/W - ASV Interrupt Enable */
+#define OTGSC_ASEIE            (1 << 25) /* R/W - ASE Interrupt Enable */
+#define OTGSC_IDIE             (1 << 24) /* R/W - ID Interrupt Enable */
+#define OTGSC_BSVIS            (1 << 19) /* R/W - BSV Interrupt Status */
+#define OTGSC_IDPU	       (1 << 5)
+#define OTGSC_ID               (1 << 8)
+#define OTGSC_IDIS             (1 << 16)
+#define B_SESSION_VALID        (1 << 11)
+#define OTGSC_INTR_MASK        (OTGSC_BSVIE | OTGSC_DPIE | OTGSC_1MSE | \
+				OTGSC_BSEIE | OTGSC_ASVIE | OTGSC_ASEIE | \
+				OTGSC_IDIE)
+#define OTGSC_INTR_STS_MASK    (0x7f << 16)
+#define CURRENT_CONNECT_STATUS (1 << 0)
+
+#define PORTSC_FPR             (1 << 6)  /* R/W - State normal => suspend */
+#define PORTSC_SUSP            (1 << 7)  /* Read - Port in suspend state */
+#define PORTSC_LS              (3 << 10) /* Read - Port's Line status */
+#define PORTSC_PHCD            (1 << 23) /* phy suspend mode */
+#define PORTSC_CCS             (1 << 0)  /* current connect status */
+#define PORTSC_PORT_RESET      0x00000100
+#define PORTSC_PTS              (3 << 30)
+#define PORTSC_PTS_ULPI         (2 << 30)
+#define PORTSC_PTS_SERIAL       (3 << 30)
+/* ACL END */
 /* suspend and remote wakeup */
 #define PORTSC_FPR             (1 << 6)
 #define PORTSC_SUSP            (1 << 7)

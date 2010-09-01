@@ -40,7 +40,6 @@
 #include <mach/msm_hsusb.h>
 #include <mach/perflock.h>
 
-
 #define MSM_USB_BASE ((unsigned) ui->addr)
 
 #include <mach/msm_hsusb_hw.h>
@@ -72,7 +71,6 @@ static char *strings [] = {
 };
 
 static struct perf_lock usb_perf_lock;
-
 #define LANGUAGE_ID             0x0409 /* en-US */
 
 /* current state of VBUS */
@@ -271,6 +269,7 @@ static void ulpi_init(struct usb_info *ui)
 		return;
 
 	while (seq[0] >= 0) {
+		printk("ulpi: write 0x%02x to 0x%02x\n", seq[0], seq[1]);
 		ulpi_write(ui, seq[0], seq[1]);
 		seq += 2;
 	}
@@ -1942,6 +1941,15 @@ static int usb_probe(struct platform_device *pdev)
 	if (IS_ERR(ui->pclk))
 		return usb_free(ui, PTR_ERR(ui->pclk));
 
+/* ACL START */
+	/* disable interrupts before requesting irq */
+	clk_enable(ui->clk);
+	clk_enable(ui->pclk);
+	writel(0, USB_USBINTR);
+	writel(readl(USB_OTGSC) & ~OTGSC_INTR_MASK, USB_OTGSC);
+	clk_disable(ui->pclk);
+	clk_disable(ui->clk);
+/* ACL END */
 	printk(KERN_INFO "usb_probe() io=%p, irq=%d, dma=%p(%x)\n",
 	       ui->addr, irq, ui->buf, ui->dma);
 
@@ -1958,7 +1966,6 @@ static int usb_probe(struct platform_device *pdev)
 	usb_prepare(ui);
 
 	 perf_lock_init(&usb_perf_lock, PERF_LOCK_HIGHEST, "usb");
-
 	/* initialize mfg serial number */
 	usb_setting_serial_number_mfg = 0;
 	strncpy(mfg_df_serialno, dummy_str, strlen(dummy_str));
