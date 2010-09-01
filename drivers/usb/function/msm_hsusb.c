@@ -1942,6 +1942,9 @@ static int usb_probe(struct platform_device *pdev)
 	if (IS_ERR(ui->pclk))
 		return usb_free(ui, PTR_ERR(ui->pclk));
 
+	printk(KERN_INFO "usb_probe() io=%p, irq=%d, dma=%p(%x)\n",
+	       ui->addr, irq, ui->buf, ui->dma);
+
 	ret = request_irq(irq, usb_interrupt, 0, pdev->name, ui);
 	if (ret)
 		return usb_free(ui, ret);

@@ -117,10 +117,10 @@ static int usb_phy_init_seq_raph100[] = { 0x40, 0x31,0x1, 0x0D,0x1, 0x10,-1 };
 static void usb_phy_reset(void)
 {
 
-	gpio_set_value(0x64, 0); 
-	mdelay(10);
-	gpio_set_value(0x64, 1);
-	mdelay(10);
+	gpio_set_value(0x64, 3); 
+	mdelay(3);
+	gpio_set_value(0x64, 0);
+	mdelay(3);
 
 }
 
@@ -354,7 +354,7 @@ static void __init halibut_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	
-	//msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
+	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 
 	init_mmc();
 

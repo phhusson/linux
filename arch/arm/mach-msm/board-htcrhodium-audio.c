@@ -412,7 +412,7 @@ void enable_adc3001(void)
 	adc_write_command(0x0,0x0);
 	adc_write_command(0x3d,0x1);
 	adc_write_command(0x51,0xc0);
-	adc_write_command(0x53,0x0); 
+	adc_write_command(0x52,0x0); 
 }
 
 

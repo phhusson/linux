@@ -67,6 +67,8 @@ struct adsp_module_info {
 };
 
 #define ADSP_EVENT_MAX_SIZE 496
+#define EVENT_LEN       12
+#define EVENT_MSG_ID    ((uint16_t)~0)
 
 struct adsp_event {
 	struct list_head list;
