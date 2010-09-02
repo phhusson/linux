@@ -75,31 +75,10 @@ static ssize_t vibrate_store(struct class *class, const char *buf, size_t count)
 	return count;
 }
 
-int is_cdma(void)
-{
-	printk(KERN_ERR "Checking for CDMA\n");
-
-	char amss_dump[20];
-	char *dot1;
-
-	*(unsigned int *) (amss_dump + 0x0) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x0);
-	*(unsigned int *) (amss_dump + 0x4) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x4);
-	*(unsigned int *) (amss_dump + 0x8) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x8);
-	*(unsigned int *) (amss_dump + 0xc) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0xc);
-	*(unsigned int *) (amss_dump + 0x10) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x10);
-	amss_dump[19] = '\0';
-
-	dot1 = strchr(amss_dump, '.');
-	if(dot1 == NULL) {	// CDMA
-		return 1;
-	}
-	return 0;
-}
-
 static ssize_t radio_show(struct class *class, char *buf)
 {
-	char *radio_type = (machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() || 
-	                    machine_is_htcdiamond_cdma() || force_cdma || is_cdma()) ? "CDMA" : "GSM";
+	char *radio_type = ((machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) || 
+	                    machine_is_htcdiamond_cdma() || force_cdma) ? "CDMA" : "GSM";
 	return sprintf(buf, "%s\n", radio_type);
 }
 
@@ -196,18 +175,18 @@ void msm_audio_path(int i) {
 	switch (i) {
 		case 2: // Phone Audio Start
 		  printk(KERN_ERR "PARAMETER: %s\n", sparameter);
-			set_audio_parameters(sparameter);
-			dex.data=0x01;
-			msm_proc_comm_wince(&dex,0);
+		//	set_audio_parameters(sparameter);
+		//	dex.data=0x01;
+		//	msm_proc_comm_wince(&dex,0);
 
 			turn_mic_bias_on(1);
 			snd_ini();
 			snd_set_device(0,SND_MUTE_UNMUTED,SND_MUTE_UNMUTED); /* "HANDSET" */
 			break;
 		case 5: // Phone Audio End
-                        set_audio_parameters("CE_PLAYBACK_HANDSFREE");
-			dex.data=0x01;
-			msm_proc_comm_wince(&dex,0);
+                  //      set_audio_parameters("CE_PLAYBACK_HANDSFREE");
+		  //	dex.data=0x01;
+		  //	msm_proc_comm_wince(&dex,0);
 			//Really turn mic off?
 			//Some soft apps might want that too.
 			turn_mic_bias_on(0);
@@ -273,3 +252,5 @@ module_init(htc_hw_init);
 MODULE_DESCRIPTION("HTC hardware platform driver");
 MODULE_AUTHOR("Joe Hansche <madcoder@gmail.com>");
 MODULE_LICENSE("GPL");
+
+

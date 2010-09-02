@@ -15,6 +15,7 @@
 #endif   
 
 #include "proc_comm_wince.h"
+#include "gpio_hw.h"
 #define MODULE_NAME "rhodium_audio"
 #define SPKR_PWR 0x54
 #define I2C_READ_RETRY_TIMES 10
@@ -562,6 +563,24 @@ void enable_speaker_rhod(void) {
 void init_mic_post_adc();
 void init_audio()
 {
+	writel(0x46,MSM_GPIOCFG1_BASE+0x20);
+	writel(0x0,MSM_GPIOCFG1_BASE+0x24);
+
+	writel(0x47,MSM_GPIOCFG1_BASE+0x20);
+	writel(0x0,MSM_GPIOCFG1_BASE+0x24);
+
+	writel(0x54,MSM_GPIOCFG1_BASE+0x20);
+	writel(0x0,MSM_GPIOCFG1_BASE+0x24);
+
+	writel(0x58,MSM_GPIOCFG1_BASE+0x20);
+	writel(0x0,MSM_GPIOCFG1_BASE+0x24);
+
+	writel(0x2c,MSM_GPIOCFG1_BASE+0x20);
+	writel(0x0,MSM_GPIOCFG1_BASE+0x24);
+
+	writel(0x58,MSM_GPIOCFG1_BASE+0x20);
+	writel(0x0,MSM_GPIOCFG1_BASE+0x24);
+
 	init_mic();
 	//gpio_fixup();
 	enable_adc3001();

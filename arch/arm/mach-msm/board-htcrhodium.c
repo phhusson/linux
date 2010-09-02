@@ -329,7 +329,6 @@ static smem_batt_t msm_battery_pdata = {
 	.smem_field_size = 4,
 };
 
-
 static void __init halibut_init(void)
 {
 	int i;
@@ -340,10 +339,7 @@ static void __init halibut_init(void)
 	// Fix data in arrays depending on GSM/CDMA version
 	htcrhodium_device_specific_fixes();
 
-
-
 	msm_acpu_clock_init(&halibut_clock_data);
-
 	msm_proc_comm_wince_init();
 
 	msm_hw_reset_hook = htcraphael_reset;
@@ -354,10 +350,9 @@ static void __init halibut_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	
-	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
+	//msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 
 	init_mmc();
-
 
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
@@ -377,8 +372,7 @@ static void __init halibut_init(void)
 		mdelay(150);
 		blac_set_vibrate(0);
 		mdelay(75);
-	}
-	
+	}	
 
 }
 
