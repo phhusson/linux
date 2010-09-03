@@ -1950,8 +1950,6 @@ static int usb_probe(struct platform_device *pdev)
 	clk_disable(ui->pclk);
 	clk_disable(ui->clk);
 /* ACL END */
-	printk(KERN_INFO "usb_probe() io=%p, irq=%d, dma=%p(%x)\n",
-	       ui->addr, irq, ui->buf, ui->dma);
 
 	ret = request_irq(irq, usb_interrupt, 0, pdev->name, ui);
 	if (ret)
@@ -1966,6 +1964,7 @@ static int usb_probe(struct platform_device *pdev)
 	usb_prepare(ui);
 
 	 perf_lock_init(&usb_perf_lock, PERF_LOCK_HIGHEST, "usb");
+
 	/* initialize mfg serial number */
 	usb_setting_serial_number_mfg = 0;
 	strncpy(mfg_df_serialno, dummy_str, strlen(dummy_str));

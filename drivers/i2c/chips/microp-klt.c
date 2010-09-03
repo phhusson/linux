@@ -427,7 +427,7 @@ void init_mic()
 	printk(KERN_INFO MODULE_NAME ": Sending mic init\n");
 
 	uint8_t buf[5];
-/*	buf[0] = 0x50;
+	buf[0] = 0x50;
 	buf[1] = 0;
 	buf[2] = 0;
 	buf[3] = 0;
@@ -447,14 +447,14 @@ void init_mic()
 	micropklt_write(client, buf, 2);
 
 	buf[1] = 0x04;
-	micropklt_write(client, buf, 2);*/
-
+	micropklt_write(client, buf, 2);
+/*
 	buf[0] = 0x25;
 	buf[1] = 0x40;
 	micropklt_write(client, buf, 2);
 
 	buf[1] = 0x44;
-	micropklt_write(client, buf, 2);
+	micropklt_write(client, buf, 2);*/
 }
 
 EXPORT_SYMBOL(init_mic);
@@ -477,7 +477,7 @@ void init_mic_post_adc()
 
 	buf[0] = 0x25;
 	buf[1] = 0x40;
-	micropklt_write(client, buf, 2);
+//	micropklt_write(client, buf, 2);
 }
 
 EXPORT_SYMBOL(init_mic_post_adc);
@@ -1228,3 +1228,5 @@ static int __init micropklt_dbg_init(void)
 
 device_initcall(micropklt_dbg_init);
 #endif /* CONFIG_DEBUG_FS */
+
+

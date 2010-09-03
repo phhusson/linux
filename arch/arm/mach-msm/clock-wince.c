@@ -493,8 +493,8 @@ static int pc_clk_enable(uint32_t id) {
 		writel(readl(MSM_CLK_CTL_BASE)|(1<<28),MSM_CLK_CTL_BASE);
 		break;
 	case SDC1_CLK:		
-		writel((readl(MSM_CLK_CTL_BASE + 0xa4) &0xfff0f000) | 0xB0044, MSM_CLK_CTL_BASE + 0xa4);
-		writel(readl(MSM_CLK_CTL_BASE+0xa4)|0xB00,MSM_CLK_CTL_BASE+0xa4);
+		//writel((readl(MSM_CLK_CTL_BASE + 0xa4) &0xfff0f000) | 0xB0044, MSM_CLK_CTL_BASE + 0xa4);
+		//writel(readl(MSM_CLK_CTL_BASE+0xa4)|0xB00,MSM_CLK_CTL_BASE+0xa4);
 		break;
 	case SDC2_CLK:
 		//writel((readl(MSM_CLK_CTL_BASE + 0xac) &0xfffff000) | 0x44, MSM_CLK_CTL_BASE + 0xac);
@@ -577,7 +577,7 @@ static void pc_clk_disable(uint32_t id)
 		writel(readl(MSM_CLK_CTL_BASE)& ~(1<<28),MSM_CLK_CTL_BASE);
 		break;
 	case SDC1_CLK:
-		writel(readl(MSM_CLK_CTL_BASE+0xa4)& ~0xB00,MSM_CLK_CTL_BASE+0xa4);
+		//writel(readl(MSM_CLK_CTL_BASE+0xa4)& ~0xB00,MSM_CLK_CTL_BASE+0xa4);
 		break;
 	case SDC2_CLK:
 		//writel(readl(MSM_CLK_CTL_BASE+0xac)& ~0xB00,MSM_CLK_CTL_BASE+0xac);
@@ -889,7 +889,7 @@ static int __init clock_late_init(void)
 
 	mutex_unlock(&clocks_mutex);
 	pr_info("clock_late_init() disabled %d unused clocks\n", count);
-print_clocks(); //data
+//print_clocks(); //data
 	/* some nand poop.. may not be needed 
 	REG_AND(MSM_CLK_CTL_BASE+0x34, 0xA0000);
 	REG_SET(MSM_CLK_CTL_BASE+0x5C,0);

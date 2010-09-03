@@ -161,10 +161,26 @@ int snd_ini() {}
 //htc_hw.c
 int turn_mic_bias_on(int on);
 
+void set_mic_path( )
+{
+     pr_info( "+++%s\n", __func__ );
+
+     set_audio_parameters("CE_REC_INC_MIC");
+     turn_mic_bias_on(1);
+
+     snd_ini();
+     snd_set_device(0,SND_MUTE_MUTED,SND_MUTE_UNMUTED); /* "HANDSET" */
+     pr_info( "---%s\n", __func__ );
+}
+
+
 void msm_audio_path(int i) {
 	char* sparameter= "PHONE_HANDSFREE_VOL5";
+
+        printk("Sound: %d, Vol: %d, Handsfree: %d\n",i, call_vol, handsfree);
 	if(!handsfree)
 		strcpy(sparameter, "PHONE_EARCUPLE_VOL5");
+
 	if(call_vol>=0 && call_vol<=5)
 		sparameter[strlen(sparameter)-1]=call_vol+'0';
 	
@@ -175,18 +191,18 @@ void msm_audio_path(int i) {
 	switch (i) {
 		case 2: // Phone Audio Start
 		  printk(KERN_ERR "PARAMETER: %s\n", sparameter);
-		//	set_audio_parameters(sparameter);
-		//	dex.data=0x01;
-		//	msm_proc_comm_wince(&dex,0);
+			set_audio_parameters(sparameter);
+			//dex.data=0x10;
+			//msm_proc_comm_wince(&dex,0);
 
 			turn_mic_bias_on(1);
 			snd_ini();
 			snd_set_device(0,SND_MUTE_UNMUTED,SND_MUTE_UNMUTED); /* "HANDSET" */
 			break;
 		case 5: // Phone Audio End
-                  //      set_audio_parameters("CE_PLAYBACK_HANDSFREE");
-		  //	dex.data=0x01;
-		  //	msm_proc_comm_wince(&dex,0);
+                        set_audio_parameters("CE_PLAYBACK_HANDSFREE");
+		  	//dex.data=0x10;
+		  	//msm_proc_comm_wince(&dex,0);
 			//Really turn mic off?
 			//Some soft apps might want that too.
 			turn_mic_bias_on(0);
@@ -204,7 +220,6 @@ static ssize_t audio_store(struct class *class,
         uint32_t audio;
         if (sscanf(buf, "%d", &audio) != 1)
                 return -EINVAL;
-        printk("Sound: %d\n",audio);
         msm_audio_path(audio);
         return count;
 }

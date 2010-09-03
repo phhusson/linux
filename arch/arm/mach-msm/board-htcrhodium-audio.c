@@ -393,16 +393,17 @@ void enable_adc3001(void)
 //	init_mic();
 	adc_write_command(0x0,0x0);
 	adc_write_command(0x1,0x1);
-	adc_write_command(0x4,0x3);
 	adc_write_command(0x5,0x11);
+	adc_write_command(0x4,0x3);
 	adc_write_command(0x6,0x5);
 	adc_write_command(0x7,0x4);
 	adc_write_command(0x8,0xb0);
+	adc_write_command(0x12,0xb0);
 	adc_write_command(0x13,0x82);
 	adc_write_command(0x14,0x80);
 	adc_write_command(0x1b,0x4c);
 	adc_write_command(0x1c,0x1);
-	adc_write_command(0x1d,0x2);
+	adc_write_command(0x14,0x2);
 	adc_write_command(0x1e,0x81);
 	adc_write_command(0x5,0x91);
 	adc_write_command(0x35,0x2);
@@ -560,6 +561,7 @@ void enable_speaker_rhod(void) {
 	tpa_write(0x7,0xc0);
 }
 
+//#define JONPRY
 void init_mic_post_adc();
 void init_audio()
 {
@@ -582,12 +584,16 @@ void init_audio()
 	writel(0x0,MSM_GPIOCFG1_BASE+0x24);
 
 	init_mic();
-	//gpio_fixup();
+#ifdef JONPRY
+	gpio_fixup();
+#endif
 	enable_adc3001();
 	init_mic_post_adc();
 	audience_enable();
 	enable_speaker_rhod();
-	//gpio_unfixup();
+#ifdef JONPRY
+	gpio_unfixup();
+#endif
 }
 
 void disable_speaker_rhod(void) {

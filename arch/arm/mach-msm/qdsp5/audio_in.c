@@ -190,6 +190,7 @@ static unsigned convert_samp_index(unsigned index)
 	}
 }
 
+void set_mic_path( );
 /* must be called with audio->lock held */
 static int audio_in_enable(struct audio_in *audio)
 {
@@ -198,6 +199,8 @@ static int audio_in_enable(struct audio_in *audio)
 
 	if (audio->enabled)
 		return 0;
+
+	set_mic_path();
 
 	cfg.tx_rate = audio->samp_rate;
 	cfg.rx_rate = RPC_AUD_DEF_SAMPLE_RATE_NONE;

@@ -72,14 +72,12 @@ static struct mutex api_lock;
 static struct mutex rpc_connect_mutex;
 static unsigned int mic_offset;
 
+
 int turn_mic_bias_on(int on)
 {
 	struct msm_dex_command dex;
 	unsigned int i;
 	printk("Turnin mic bias on %d\n", on);
-	
-	dex.cmd=PCOM_UPDATE_AUDIO;
-	dex.has_data=1;
 
 	printk("MICDUMP: 0x%8.8X, 0x%8.8X, 0x%8.8X\n",
 		*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset),
@@ -87,16 +85,24 @@ int turn_mic_bias_on(int on)
 		*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x8));
 
 	/*  enable handset mic */
-//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0xffff0080 | (on?0x100:0);
-//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+4)=0;
-//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+8)=0;
-	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0x07930093;
+	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0xffff0080 | (on?0x100:0);
+
+	//TODO: this number should be there when not playing/recording
+//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0x07930093;
 	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x4)=0x07930193;
 	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x8)=0x0000FFFF;
+
+	printk("ADIEDUMP: 0x%8.8X, 0x%8.8X\n",
+		*(unsigned *)(MSM_SHARED_RAM_BASE+0xfc0b8),
+		*(unsigned *)(MSM_SHARED_RAM_BASE+0xfc0d0));
+
+	dex.cmd=PCOM_UPDATE_AUDIO;
+	dex.has_data=1;
 
 
 	dex.data=0x10;
 	msm_proc_comm_wince(&dex,0);
+
 
 	/* some devices needs pm_mic_en */
 	if (machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() || machine_is_htckovsky())
@@ -120,23 +126,13 @@ int turn_mic_bias_on(int on)
 	return 0;
 }
 
-static int __init acoustic_load(void)
+EXPORT_SYMBOL(turn_mic_bias_on);
+
+static int __init init_mic_bias_on()
 {
 	struct msm_dex_command dex;
 	unsigned int i;
-	printk("Acoustic init\n");
-
-	printk("acoustic dump: you know you want it\n");
-	printk("unsigned int audparms[] = {\n");
-
-/*	for(i=0; i < 1024; i++)
-	{
-		if(i%5==0)
-			printk("\t");
-		printk("0x%8.8X,",readl(MSM_SHARED_RAM_BASE + 0xfc200 + i*4));
-		if(i%5==4)
-			printk("\n");
-	} */
+	printk("init mic bias on\n");
 
 	unsigned int audparms[] = {0x301000E1,0x00000001,0x00000001,0x00000000,0x00000000,
 				0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
@@ -202,10 +198,7 @@ static int __init acoustic_load(void)
 		*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x4),
 		*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x8));
 
-	/*  enable handset mic */
-//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0xffff0080 | (on?0x100:0);
-//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+4)=0;
-//	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+8)=0;
+	//TODO: this number should be there when not playing/recording
 	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0x07930093;
 	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x4)=0x07930193;
 	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset+0x8)=0x0000FFFF;
@@ -224,8 +217,6 @@ static int __init acoustic_load(void)
 	return 0;
 }
 
-
-EXPORT_SYMBOL(turn_mic_bias_on);
 
 static int acoustic_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -379,8 +370,10 @@ static void __exit acoustic_exit(void)
 module_init(acoustic_init);
 module_exit(acoustic_exit);
 
-late_initcall(acoustic_load);
+late_initcall(init_mic_bias_on);
 
 MODULE_AUTHOR("Laurence Chen <Laurence_Chen@htc.com>");
 MODULE_DESCRIPTION("HTC acoustic driver");
 MODULE_LICENSE("GPL");
+
+

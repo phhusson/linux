@@ -41,6 +41,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/msm_smd.h>
+
 #include "smd_rpcrouter.h"
 #include "smd_private.h"
 
@@ -212,7 +213,8 @@ static void rpcrouter_destroy_server(struct rr_server *server)
 	kfree(server);
 }
 
-static struct rr_server *rpcrouter_lookup_server(uint32_t prog, uint32_t ver)
+static struct rr_server *rpcrouter_lookup_server(uint32_t prog,
+							uint32_t ver)
 {
 	struct rr_server *server;
 	unsigned long flags;
@@ -244,6 +246,7 @@ static struct rr_server *rpcrouter_lookup_server_by_dev(dev_t dev)
 	spin_unlock_irqrestore(&server_list_lock, flags);
 	return NULL;
 }
+
 
 struct msm_rpc_endpoint *msm_rpcrouter_create_local_endpoint(dev_t dev)
 {
@@ -421,8 +424,9 @@ static int process_control_msg(union rr_control_msg *msg, int len)
 		
 		/* Send list of servers one at a time */
 		ctl.cmd = RPCROUTER_CTRL_CMD_NEW_SERVER;
-
+				
 		/* TODO: long time to hold a spinlock... */
+	
 		spin_lock_irqsave(&server_list_lock, flags);
 		list_for_each_entry(server, &server_list, list) {
 			ctl.srv.pid = server->pid;
@@ -662,13 +666,14 @@ static void do_read_data(struct work_struct *work)
 	if (rr_read(frag->data, hdr.size))
 		goto fail_io;
 
+	
 	ept = rpcrouter_lookup_local_endpoint(hdr.dst_cid);
 	if (!ept) {
-		DIAG("no local ept for cid %08x\n", hdr.dst_cid);
+		DIAG("no local ept for dst cid %08x\n", hdr.dst_cid);
 		kfree(frag);
 		goto done;
 	}
-
+	
 	/* See if there is already a partial packet that matches our mid
 	 * and if so, append this fragment to that packet.
 	 */
@@ -724,14 +729,13 @@ packet_complete:
 	}
 	spin_unlock_irqrestore(&ept->read_q_lock, flags);
 done:
-
 	if (hdr.confirm_rx) {
 		union rr_control_msg msg;
 
 		msg.cmd = RPCROUTER_CTRL_CMD_RESUME_TX;
 		msg.cli.pid = hdr.dst_pid;
 		msg.cli.cid = hdr.dst_cid;
-
+	
 		RR("x RESUME_TX id=%d:%08x\n", msg.cli.pid, msg.cli.cid);
 		rpcrouter_send_control_msg(&msg);
 	}
@@ -1011,7 +1015,7 @@ int msm_rpc_call_reply(struct msm_rpc_endpoint *ept, uint32_t proc,
 		}
 		/* If an earlier call timed out, we could get the (no
 		 * longer wanted) reply for it.  Ignore replies that
-		 * we don't expect.
+		 * we don't expect
 		 */
 		if (reply->xid != req->xid) {
 			kfree(reply);
@@ -1145,7 +1149,7 @@ struct msm_rpc_endpoint *msm_rpc_connect(uint32_t prog, uint32_t vers, unsigned 
 	ept = msm_rpc_open();
 	if (IS_ERR(ept))
 		return ept;
-
+	
 	ept->flags = flags;
 	ept->dst_pid = server->pid;
 	ept->dst_cid = server->cid;
@@ -1188,7 +1192,9 @@ int msm_rpc_register_server(struct msm_rpc_endpoint *ept,
 
 	RR("x NEW_SERVER id=%d:%08x prog=%08x:%08x\n",
 	   ept->pid, ept->cid, prog, vers);
+	
 
+	
 //	msg.srv.cmd = RPCROUTER_CTRL_CMD_NEW_SERVER;
 	rc = rpcrouter_send_control_msg(&msg);
 	if (rc < 0)
@@ -1302,8 +1308,8 @@ static int msm_rpcrouter_suspend(struct platform_device *pdev,
 static struct platform_driver msm_smd_channel2_driver = {
 	.probe		= msm_rpcrouter_probe,
 	.driver		= {
-			.name	= "SMD_RPCCALL",
-			.owner	= THIS_MODULE,
+		.name	= "SMD_RPCCALL",
+		.owner	= THIS_MODULE,
 	},
 	.suspend	= msm_rpcrouter_suspend, //ACL
 };
