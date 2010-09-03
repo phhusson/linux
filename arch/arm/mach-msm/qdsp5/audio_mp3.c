@@ -42,6 +42,8 @@
 /* for queue ids - should be relative to module number*/
 #include "adsp.h"
 
+#include "snd_state.h"
+
 #define BUFSZ 32768
 #define DMASZ (BUFSZ * 2)
 
@@ -126,6 +128,8 @@ static int audio_enable(struct audio *audio)
 	cfg.codec = RPC_AUD_DEF_CODEC_MP3;
 	cfg.snd_method = RPC_SND_METHOD_MIDI;
 
+        snd_state |= SND_STATE_PLAYBACK;
+        pr_info( "+++ MP3 Playback: 0x%x +++\n", snd_state );
 	rc = audmgr_enable(&audio->audmgr, &cfg);
 	if (rc < 0)
 		return rc;
@@ -482,6 +486,8 @@ static int audio_release(struct inode *inode, struct file *file)
 {
 	struct audio *audio = file->private_data;
 
+        snd_state &= ~(SND_STATE_PLAYBACK);
+        pr_info( "--- MP3 Playback ---\n" );
 	mutex_lock(&audio->lock);
 	audio_disable(audio);
 	audio_flush(audio);

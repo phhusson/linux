@@ -28,6 +28,8 @@
 #include <asm/gpio.h>
 #include <mach/amss_para.h>
 
+#include "snd_state.h"
+
 // called from snd.c
 void headphone_amp_power(int status);
 
@@ -47,7 +49,11 @@ void enable_speaker(void) {
 		case MACH_TYPE_HTCRHODIUM:
 			//Needs userland fix
 			//Workaround, see audio_out.c
-			//enable_speaker_rhod();
+                        if( snd_state & SND_STATE_INCALL )
+                        {
+			    enable_speaker_rhod();
+                            snd_state |= SND_STATE_SPEAKER;
+                        }
 			break;
 		case MACH_TYPE_HTCKOVSKY:
 			gpio_configure(0x41, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
@@ -65,6 +71,7 @@ void disable_speaker(void) {
 			break;
 		case MACH_TYPE_HTCRHODIUM:
 			disable_speaker_rhod();
+                        snd_state &= ~(SND_STATE_SPEAKER);
 			break;
 		case MACH_TYPE_HTCKOVSKY:
 			gpio_configure(0x41, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);

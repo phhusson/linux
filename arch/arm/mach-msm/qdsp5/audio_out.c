@@ -43,6 +43,8 @@
 
 #include "evlog.h"
 
+#include "snd_state.h"
+
 #define LOG_AUDIO_EVENTS 1
 #define LOG_AUDIO_FAULTS 0
 
@@ -250,6 +252,8 @@ static int audio_enable(struct audio *audio)
 	cfg.snd_method = RPC_SND_METHOD_MIDI;
 
 	audio_prevent_sleep(audio);	
+        snd_state |= SND_STATE_PLAYBACK;
+        pr_info( "+++ Audio Out: 0x%x +++\n", snd_state );
 	rc = audmgr_enable(&audio->audmgr, &cfg);
 	if (rc < 0) {
 		audio_allow_sleep(audio);
@@ -690,6 +694,8 @@ static int audio_release(struct inode *inode, struct file *file)
 {
 	struct audio *audio = file->private_data;
 
+        snd_state &= ~(SND_STATE_PLAYBACK);
+        pr_info( "--- Audio Out: 0x%x ---\n", snd_state );
 	LOG(EV_OPEN, 0);
 	mutex_lock(&audio->lock);
 	audio_disable(audio);

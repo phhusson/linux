@@ -37,6 +37,8 @@
 #include <mach/msm_adsp.h>
 #include <mach/msm_iomap.h>
 
+#include "snd_state.h"
+
 #define RPC_SND_PROG	0x30000002
 
 /* Taken from android hardware/msm7k/libaudio/AudioHardware.h
@@ -55,6 +57,9 @@
 #define SND_DEVICE_HEADSET_AND_SPEAKER 10
 #define SND_DEVICE_FM_SPEAKER 11
 #define SND_DEVICE_BT_EC_OFF 12
+
+
+uint8_t snd_state = SND_STATE_IDLE;
 
 struct snd_ctxt {
 	struct mutex lock;
@@ -199,14 +204,21 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 	else
 		disable_speaker();
 
-	mic_mute=SND_MUTE_UNMUTED;
-	if(mic_mute==SND_MUTE_UNMUTED)
-		turn_mic_bias_on(1);
+//	mic_mute=SND_MUTE_UNMUTED;
+
+        if(mic_mute==SND_MUTE_UNMUTED)
+        {
+            snd_state |= SND_STATE_RECORD;
+        }
 	else
-		turn_mic_bias_on(0);
+        {
+            snd_state &= ~(SND_STATE_RECORD);
+        }
+        msm_setup_audio();
+
 	pr_info("snd_set_device %d %d %d\n", device,
 					 ear_mute, mic_mute);
-	mic_mute=0;
+//	mic_mute=0;
 
 	if(!snd->ept) {
 		pr_err("No sound endpoint found, can't set snd_device");
@@ -258,6 +270,23 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (dev.device == SND_DEVICE_NO_MIC_HEADSET)
 			dev.device = SND_DEVICE_HEADSET;
 
+                dev.ear_mute = ( snd_state & (SND_STATE_PLAYBACK | SND_STATE_SPEAKER | SND_STATE_INCALL ) ) ? SND_MUTE_UNMUTED : SND_MUTE_MUTED;
+                dev.mic_mute = ( snd_state & (SND_STATE_RECORD) ) ? SND_MUTE_UNMUTED : SND_MUTE_MUTED;
+
+                /*
+                if( snd_state & (SND_STATE_INCALL) )
+                {
+                    dev.device = SND_DEVICE_HANDSET;
+                }
+                */
+
+                // We might have changed some things - let the user know
+                if( copy_to_user( (void __user *) arg, &dev, sizeof( dev ) ) )
+                {
+                    // But don't care one way or the other
+                    pr_err( "snd_ioctl set device: error writing back -- ignoring\n" );
+                }
+
 		snd_set_device(dev.device, dev.ear_mute, dev.mic_mute);
 		break;
 
@@ -273,8 +302,15 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		switch(__machine_arch_type) {
 			case MACH_TYPE_HTCTOPAZ:
 			case MACH_TYPE_HTCRHODIUM:
+                            /*
 				pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0x11\n", current->comm, vol.device);
 				vol.device = 0x11;
+                            */
+                                if( ( snd_state & (SND_STATE_INCALL|SND_STATE_PLAYBACK) ) && call_vol != vol.volume )
+                                {
+                                    call_vol = vol.volume;
+                                }
+                                msm_setup_audio( );
 				break;
 			case MACH_TYPE_HTCRAPHAEL:
 			case MACH_TYPE_HTCDIAMOND_CDMA:
@@ -291,7 +327,9 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 #endif
 		if(vol.device==1)
+                {
 			speaker_vol(vol.volume);
+                }
 		vmsg.args.device = cpu_to_be32(vol.device);
 		vmsg.args.method = cpu_to_be32(vol.method);
 		if (vol.method != SND_METHOD_VOICE && vol.method != SND_METHOD_AUDIO) {

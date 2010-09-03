@@ -23,6 +23,7 @@
 #include "AudioPara.c"
 #include <linux/msm_audio.h>
 #include <asm/gpio.h>
+#include "qdsp5/snd_state.h"
 
 #if 1
  #define DHTC(fmt, arg...) printk(KERN_DEBUG "[HTC] %s: " fmt "\n", __FUNCTION__, ## arg)
@@ -34,7 +35,7 @@ static htc_hw_pdata_t *htc_hw_pdata;
 static int force_cdma=0;
 module_param(force_cdma, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-static int call_vol=5;
+int call_vol=5;
 module_param(call_vol, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static int handsfree=1;
@@ -151,64 +152,60 @@ static void set_audio_parameters(char *name) {
 	}
 	memcpy((void *)(MSM_SHARED_RAM_BASE+0xfc300),audioparams[i].data,0x140);
 }
-#ifdef CONFIG_MSM_ADSP
-void snd_set_device(int device,int ear_mute, int mic_mute);
-int snd_ini();
-#else
-void snd_set_device(int device, int ear_mute, int mic_mute) {};
-int snd_ini() {}
-#endif
+
+
 //htc_hw.c
 int turn_mic_bias_on(int on);
 
-void set_mic_path( )
+void msm_setup_audio( )
 {
-     pr_info( "+++%s\n", __func__ );
+    char *sparam = "";
+    pr_info( "+++ %s -- 0x%x\n", __func__, snd_state );
+    if( ( snd_state & SND_STATE_INCALL ) )
+    {
+        sparam = "PHONE_EARCUPLE_VOL5";
+        if( snd_state & SND_STATE_SPEAKER )
+        {
+            sparam = "PHONE_HANDSFREE_VOL5";
+        }
 
-     set_audio_parameters("CE_REC_INC_MIC");
-     turn_mic_bias_on(1);
+        if( call_vol >= 0 && call_vol <= 5 )
+        {
+            sparam[strlen(sparam)-1] = call_vol + '0';
+        }
+    }
+    else if( snd_state & SND_STATE_PLAYBACK )
+    {
+        sparam = "CE_PLAYBACK_HANDSFREE";
+    }
+    else if( snd_state & SND_STATE_RECORD )
+    {
+        sparam = "CE_REC_INC_MIC";
+    }
 
-     snd_ini();
-     snd_set_device(0,SND_MUTE_MUTED,SND_MUTE_UNMUTED); /* "HANDSET" */
-     pr_info( "---%s\n", __func__ );
+    if( strlen(sparam) > 0 )
+    {
+        pr_info( "%s - Param is: %s\n", __func__,sparam );
+        set_audio_parameters( sparam );
+        turn_mic_bias_on( (snd_state & (SND_STATE_RECORD|SND_STATE_INCALL)) ? 1 : 0 );
+    }
+
+    pr_info( "--- %s -- 0x%x\n", __func__, snd_state );
 }
 
 
+
 void msm_audio_path(int i) {
-	char* sparameter= "PHONE_HANDSFREE_VOL5";
-
-        printk("Sound: %d, Vol: %d, Handsfree: %d\n",i, call_vol, handsfree);
-	if(!handsfree)
-		strcpy(sparameter, "PHONE_EARCUPLE_VOL5");
-
-	if(call_vol>=0 && call_vol<=5)
-		sparameter[strlen(sparameter)-1]=call_vol+'0';
-	
-	struct msm_dex_command dex;
-	dex.cmd=PCOM_UPDATE_AUDIO;
-	dex.has_data=1;
-
 	switch (i) {
 		case 2: // Phone Audio Start
-		  printk(KERN_ERR "PARAMETER: %s\n", sparameter);
-			set_audio_parameters(sparameter);
-			//dex.data=0x10;
-			//msm_proc_comm_wince(&dex,0);
 
-			turn_mic_bias_on(1);
-			snd_ini();
-			snd_set_device(0,SND_MUTE_UNMUTED,SND_MUTE_UNMUTED); /* "HANDSET" */
+                        snd_state |= (SND_STATE_INCALL | SND_STATE_RECORD);
+                        pr_info( "++ IN CALL: 0x%x ++\n", snd_state );
+                        // Let snd_ioctl handle the snd_set_device stuff
 			break;
 		case 5: // Phone Audio End
-                        set_audio_parameters("CE_PLAYBACK_HANDSFREE");
-		  	//dex.data=0x10;
-		  	//msm_proc_comm_wince(&dex,0);
-			//Really turn mic off?
-			//Some soft apps might want that too.
-			turn_mic_bias_on(0);
-
-			snd_ini();
-			snd_set_device(1,SND_MUTE_MUTED,SND_MUTE_MUTED); /* "SPEAKER" */
+                        snd_state = SND_STATE_IDLE;
+			pr_info( "-- END CALL : 0x%x--\n", snd_state );
                         break;
 	}
 }
@@ -267,5 +264,3 @@ module_init(htc_hw_init);
 MODULE_DESCRIPTION("HTC hardware platform driver");
 MODULE_AUTHOR("Joe Hansche <madcoder@gmail.com>");
 MODULE_LICENSE("GPL");
-
-

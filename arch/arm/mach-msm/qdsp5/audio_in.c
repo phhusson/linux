@@ -43,6 +43,9 @@
 /* for queue ids - should be relative to module number*/
 #include "adsp.h"
 
+/* Hack for sound fixes */
+#include "snd_state.h"
+
 /* FRAME_NUM must be a power of two */
 #define FRAME_NUM		(8)
 #define FRAME_SIZE		(2052 * 2)
@@ -190,7 +193,6 @@ static unsigned convert_samp_index(unsigned index)
 	}
 }
 
-void set_mic_path( );
 /* must be called with audio->lock held */
 static int audio_in_enable(struct audio_in *audio)
 {
@@ -199,8 +201,6 @@ static int audio_in_enable(struct audio_in *audio)
 
 	if (audio->enabled)
 		return 0;
-
-	set_mic_path();
 
 	cfg.tx_rate = audio->samp_rate;
 	cfg.rx_rate = RPC_AUD_DEF_SAMPLE_RATE_NONE;
@@ -770,6 +770,8 @@ static int audio_in_release(struct inode *inode, struct file *file)
 {
 	struct audio_in *audio = file->private_data;
 
+        snd_state &= ~(SND_STATE_RECORD);
+        pr_info( "--- Audio In: 0x%x ---\n", snd_state );
 	mutex_lock(&audio->lock);
 	audio_in_disable(audio);
 	audio_flush(audio);
@@ -804,6 +806,8 @@ static int audio_in_open(struct inode *inode, struct file *file)
 	audio->buffer_size = MONO_DATA_SIZE;
 	audio->type = AUDREC_CMD_TYPE_0_INDEX_WAV;
 
+        snd_state |= SND_STATE_RECORD;
+        pr_info( "+++ Audio In: 0x%x +++\n", snd_state );
 	rc = audmgr_open(&audio->audmgr);
 	if (rc)
 		goto done;
