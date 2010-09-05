@@ -68,8 +68,7 @@
 #define INT_TSIF_IRQ         (32 + 12)
 #define INT_UART1DM_IRQ      (32 + 13)
 #define INT_UART1DM_RX       (32 + 14)
-//#define INT_USB_HS           (32 + 15)
-#define INT_USB_HS           6
+#define INT_USB_HS           (32 + 15)
 #define INT_SDC3_0           (32 + 16)
 #define INT_SDC3_1           (32 + 17)
 #define INT_SDC4_0           (32 + 18)
