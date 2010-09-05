@@ -145,7 +145,7 @@ unsigned int get_amss_version(void)
 	*(unsigned int *) (amss_dump + 0x8) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x8);
 	*(unsigned int *) (amss_dump + 0xc) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0xc);
 	*(unsigned int *) (amss_dump + 0x10) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x10);
-printk(KERN_INFO "amss_dump string: %s", amss_dump);
+
 	amss_dump[19] = '\0';
 	
 	dot1 = strchr(amss_dump, '.');

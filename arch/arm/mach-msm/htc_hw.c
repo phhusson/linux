@@ -76,10 +76,38 @@ static ssize_t vibrate_store(struct class *class, const char *buf, size_t count)
 	return count;
 }
 
+unsigned int is_rhod_cdma(void)
+{
+	if(machine_is_htcrhodium()) {
+		char amss_dump[20];
+		char *dot1;
+	
+		/* Detection doesn't work on 'old' CDMA, there's no
+		 * version string to be found anywhere in SHARED_RAM_BASE
+		 */
+	
+		// Dump AMMS version
+		*(unsigned int *) (amss_dump + 0x0) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x0);
+		*(unsigned int *) (amss_dump + 0x4) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x4);
+		*(unsigned int *) (amss_dump + 0x8) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x8);
+		*(unsigned int *) (amss_dump + 0xc) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0xc);
+		*(unsigned int *) (amss_dump + 0x10) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x10);
+	
+		amss_dump[19] = '\0';
+		
+		dot1 = strchr(amss_dump, '.');
+		if(dot1 == NULL) {	// CDMA
+			return 1;
+		}
+	}
+return 0;
+}
+
+
 static ssize_t radio_show(struct class *class, char *buf)
 {
 	char *radio_type = ((machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) || 
-	                    machine_is_htcdiamond_cdma() || force_cdma) ? "CDMA" : "GSM";
+	                    machine_is_htcdiamond_cdma() || is_rhod_cdma() || force_cdma) ? "CDMA" : "GSM";
 	return sprintf(buf, "%s\n", radio_type);
 }
 
@@ -121,11 +149,31 @@ static ssize_t battery_show(struct class *class, char *buf)
 	}
 }
 
+static ssize_t machine_variant_show(struct class *class, char *buf)
+
+{
+	char machine_variant[20];
+	int i;
+	if(!machine_is_htcrhodium())
+		return;
+	
+	for(i=0; i < 20; i++)
+	{
+		machine_variant[i] = (char)*(unsigned short*)(MSM_SPL_BASE + 0x81068 + i*2);
+	}
+	machine_variant[19] = 0;
+
+
+	return sprintf(buf, "%s\n", machine_variant);
+
+}
+
 static struct class_attribute htc_hw_class_attrs[] = {
 	__ATTR_RO(battery),
 	__ATTR_RO(radio),
 	__ATTR_RO(machtype),
 	__ATTR_RO(amss),
+	__ATTR_RO(machine_variant),
 	__ATTR(vibrate, 0222, NULL, vibrate_store),
 	__ATTR(flash, 0222, NULL, flash_store),
 	__ATTR(test,0222, NULL, test_store),

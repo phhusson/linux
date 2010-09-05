@@ -55,6 +55,12 @@ static struct map_desc msm_io_desc[] __initdata = {
 		.length =   MSM_SHARED_RAM_SIZE,
 		.type =     MT_DEVICE,
 	},
+	{
+		.virtual =  (unsigned long) MSM_SPL_BASE,
+		.pfn =      __phys_to_pfn(MSM_SPL_PHYS),
+		.length =   MSM_SPL_SIZE,
+		.type =     MT_DEVICE,
+	},
         MSM_DEVICE(GPIOCFG1),
         MSM_DEVICE(GPIOCFG2),
 	MSM_DEVICE(TS),

@@ -13,7 +13,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * 
  */
 
 #include <linux/init.h>
@@ -55,7 +55,7 @@ static const char driver_name[] = "msm72k_udc";
 
 
 static const char *const ep_name[] = {
-	"ep0out", "ep1out", "ep2out", "ep3out",
+	"ep0out", "ep1out",  "ep2out", "ep3out",
 	"ep4out", "ep5out", "ep6out", "ep7out",
 	"ep8out", "ep9out", "ep10out", "ep11out",
 	"ep12out", "ep13out", "ep14out", "ep15out",

@@ -268,7 +268,8 @@ static int audio_enable(struct audio *audio)
 	}
 
 	audio->enabled = 1;
-	if(!headset_plugged())
+	if(!headset_plugged() && !(snd_state & SND_STATE_INCALL) )
+		printk(KERN_INFO "if(!headset_plugged() && !(snd_state & SND_STATE_INCALL) = TRUE");
 		enable_speaker_rhod();
 	htc_pwrsink_set(PWRSINK_AUDIO, 100);
 	return 0;
@@ -288,7 +289,12 @@ static int audio_disable(struct audio *audio)
 		audmgr_disable(&audio->audmgr);
 		audio->out_needed = 0;
 		audio_allow_sleep(audio);
-		disable_speaker_rhod();
+
+                if( !(snd_state & SND_STATE_INCALL ) )
+                {
+			printk(KERN_INFO " if( !(snd_state & SND_STATE_INCALL ) ) = TRUE");
+		    disable_speaker_rhod();
+                }
 	}
 	return 0;
 }
@@ -856,3 +862,4 @@ static int __init audio_init(void)
 }
 
 device_initcall(audio_init);
+
