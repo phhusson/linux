@@ -156,8 +156,6 @@ static struct msm_clock_params msm_clock_parameters_6125[] = {
 	{ .clk_id = SDC4_CLK,			 	.offset = 0xbc,		.name="SDC4_CLK",},
 	{ .clk_id = SDC4_PCLK,		.idx = 28, 				.name="SDC4_PCLK",},
 
-
-	
 	{ .clk_id = TSIF_CLK,		.idx = 18,	.offset = 0xc4,		.name="TSIF_CLK",},
 	{ .clk_id = TSIF_REF_CLK,	.idx = 18,	.offset = 0xc4,		.name="TSIF_REF_CLK",},
 	{ .clk_id = TV_DAC_CLK,				.offset = 0xcc,		.name="TV_DAC_CLK",},
@@ -167,10 +165,9 @@ static struct msm_clock_params msm_clock_parameters_6125[] = {
 	{ .clk_id = UART3_CLK,				.offset = 0xe0,		.name="UART3",},
 	{ .clk_id = UART1DM_CLK,	.idx = 17, 	.offset = 0xd4,		.name="UART1DM_CLK",},
 	{ .clk_id = UART2DM_CLK,	.idx = 26, 	.offset = 0xdc,		.name="UART2DM_CLK",},
-//	{ .clk_id = USB_HS_CLK,				.offset = 0x2c0,	.name="USB_HS_CLK",},
-	{ .clk_id = USB_HS_CLK,				.offset = 0xe8,		.name="USB_HS_CLK",},
+	{ .clk_id = USB_HS_CLK,				.offset = 0x2c0,	.name="USB_HS_CLK",},
 	{ .clk_id = USB_HS_PCLK,	.idx = 25,				.name="USB_HS_PCLK",},
-	{ .clk_id = USB_OTG_CLK,			.offset = 0x2c0,	.name="USB_OTG_CLK",},
+	{ .clk_id = USB_OTG_CLK,			.offset = 0xe8,		.name="USB_OTG_CLK",},
 //	{ .clk_id = VDC_CLK,			   	.offset = 0xF0,		.name="VDC_CLK"},
 //	{ .clk_id = VFE_CLK, 				.offset = 0x44,		.name="VFE_CLK", },
 //	{ .clk_id = VFE_MDC_CLK, 			.offset = 0x44,		.name="VFE_MDC_CLK", },
