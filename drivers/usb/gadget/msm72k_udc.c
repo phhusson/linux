@@ -13,7 +13,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  */
 
 #include <linux/init.h>
@@ -38,12 +38,15 @@
 
 #include <mach/board.h>
 #include <mach/msm_hsusb.h>
+#include <linux/device.h>
+#include <mach/msm_hsusb_hw.h>
+
+#define CONFIG_ARCH_MSM7X00A
 
 static const char driver_name[] = "msm72k_udc";
 
 /* #define DEBUG */
 /* #define VERBOSE */
-#include <mach/msm_hsusb_hw.h>
 
 #define MSM_USB_BASE ((unsigned) ui->addr)
 
@@ -55,7 +58,7 @@ static const char driver_name[] = "msm72k_udc";
 
 
 static const char *const ep_name[] = {
-	"ep0out", "ep1out",  "ep2out", "ep3out",
+	"ep0out", "ep1out", "ep2out", "ep3out",
 	"ep4out", "ep5out", "ep6out", "ep7out",
 	"ep8out", "ep9out", "ep10out", "ep11out",
 	"ep12out", "ep13out", "ep14out", "ep15out",
@@ -82,7 +85,6 @@ struct msm_request {
 	unsigned busy:1;
 	unsigned live:1;
 	unsigned alloced:1;
-	unsigned dead:1;
 
 	dma_addr_t dma;
 	dma_addr_t item_dma;
@@ -160,6 +162,10 @@ struct usb_info {
 
 	int *phy_init_seq;
 	void (*phy_reset)(void);
+	void (*hw_reset)(bool en);
+
+	/* for notification when USB is connected or disconnected */
+	void (*usb_connected)(int);
 
 	struct work_struct work;
 	unsigned phy_status;
@@ -173,15 +179,34 @@ struct usb_info {
 
 	struct clk *clk;
 	struct clk *pclk;
+	struct clk *otgclk;
+	struct clk *ebi1clk;
+
+	unsigned int ep0_dir;
+	u16 test_mode;
+
+	u8 remote_wakeup;
 };
 
 static const struct usb_ep_ops msm72k_ep_ops;
+
 
 static int msm72k_pullup(struct usb_gadget *_gadget, int is_active);
 static int msm72k_set_halt(struct usb_ep *_ep, int value);
 static void flush_endpoint(struct msm_endpoint *ept);
 
-#if 0
+static int usb_ep_get_stall(struct msm_endpoint *ept)
+{
+	unsigned int n;
+	struct usb_info *ui = ept->ui;
+
+	n = readl(USB_ENDPTCTRL(ept->num));
+	if (ept->flags & EPT_FLAG_IN)
+		return (CTRL_TXS & n) ? 1 : 0;
+	else
+		return (CTRL_RXS & n) ? 1 : 0;
+}
+
 static unsigned ulpi_read(struct usb_info *ui, unsigned reg)
 {
 	unsigned timeout = 100000;
@@ -191,8 +216,7 @@ static unsigned ulpi_read(struct usb_info *ui, unsigned reg)
 	       USB_ULPI_VIEWPORT);
 
 	/* wait for completion */
-	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout))
-		;
+	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout)) ;
 
 	if (timeout == 0) {
 		ERROR("ulpi_read: timeout %08x\n", readl(USB_ULPI_VIEWPORT));
@@ -200,9 +224,8 @@ static unsigned ulpi_read(struct usb_info *ui, unsigned reg)
 	}
 	return ULPI_DATA_READ(readl(USB_ULPI_VIEWPORT));
 }
-#endif
 
-static void ulpi_write(struct usb_info *ui, unsigned val, unsigned reg)
+static int ulpi_write(struct usb_info *ui, unsigned val, unsigned reg)
 {
 	unsigned timeout = 10000;
 
@@ -212,11 +235,14 @@ static void ulpi_write(struct usb_info *ui, unsigned val, unsigned reg)
 	       USB_ULPI_VIEWPORT);
 
 	/* wait for completion */
-	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout))
-		;
+	while((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout)) ;
 
-	if (timeout == 0)
-		ERROR("ulpi_write: timeout\n");
+	if (timeout == 0) {
+		printk(KERN_ERR "ulpi_write: timeout\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 static void ulpi_init(struct usb_info *ui)
@@ -259,29 +285,29 @@ static void init_endpoints(struct usb_info *ui)
 	}
 }
 
+static void config_ept(struct msm_endpoint *ept)
+{
+	unsigned cfg = CONFIG_MAX_PKT(ept->ep.maxpacket) | CONFIG_ZLT;
+
+	if (ept->bit == 0)
+		/* ep0 out needs interrupt-on-setup */
+		cfg |= CONFIG_IOS;
+
+	ept->head->config = cfg;
+	ept->head->next = TERMINATE;
+
+	if (ept->ep.maxpacket)
+		INFO("ept #%d %s max:%d head:%p bit:%d\n",
+		    ept->num, (ept->flags & EPT_FLAG_IN) ? "in" : "out",
+		    ept->ep.maxpacket, ept->head, ept->bit);
+}
+
 static void configure_endpoints(struct usb_info *ui)
 {
 	unsigned n;
-	unsigned cfg;
 
-	for (n = 0; n < 32; n++) {
-		struct msm_endpoint *ept = ui->ept + n;
-
-		cfg = CONFIG_MAX_PKT(ept->ep.maxpacket) | CONFIG_ZLT;
-
-		if (ept->bit == 0)
-			/* ep0 out needs interrupt-on-setup */
-			cfg |= CONFIG_IOS;
-
-		ept->head->config = cfg;
-		ept->head->next = TERMINATE;
-
-		if (ept->ep.maxpacket)
-			INFO("ept #%d %s max:%d head:%p bit:%d\n",
-			       ept->num,
-			       (ept->flags & EPT_FLAG_IN) ? "in" : "out",
-			       ept->ep.maxpacket, ept->head, ept->bit);
-	}
+	for (n = 0; n < 32; n++)
+		config_ept(ui->ept + n);
 }
 
 struct usb_request *usb_ept_alloc_req(struct msm_endpoint *ept,
@@ -315,17 +341,8 @@ fail1:
 	return 0;
 }
 
-static void do_free_req(struct usb_info *ui, struct msm_request *req)
-{
-	if (req->alloced)
-		kfree(req->req.buf);
-
-	dma_pool_free(ui->pool, req->item, req->item_dma);
-	kfree(req);
-}
-
-
-static void usb_ept_enable(struct msm_endpoint *ept, int yes)
+static void usb_ept_enable(struct msm_endpoint *ept, int yes,
+		unsigned char ep_type)
 {
 	struct usb_info *ui = ept->ui;
 	int in = ept->flags & EPT_FLAG_IN;
@@ -334,21 +351,57 @@ static void usb_ept_enable(struct msm_endpoint *ept, int yes)
 	n = readl(USB_ENDPTCTRL(ept->num));
 
 	if (in) {
-		n = (n & (~CTRL_TXT_MASK)) | CTRL_TXT_BULK;
-		if (yes)
+		n = (n & (~CTRL_TXT_MASK));
+		if (yes) {
 			n |= CTRL_TXE | CTRL_TXR;
-		else
+		} else {
 			n &= (~CTRL_TXE);
+		}
+		if (yes) {
+			switch (ep_type) {
+			case USB_ENDPOINT_XFER_BULK:
+				n |= CTRL_TXT_BULK;
+				break;
+			case USB_ENDPOINT_XFER_INT:
+				n |= CTRL_TXT_INT;
+				break;
+			case USB_ENDPOINT_XFER_ISOC:
+				n |= CTRL_TXT_ISOCH;
+				break;
+			default:
+				pr_err("%s: unsupported ep_type %d for %s\n",
+					__func__, ep_type, ept->ep.name);
+				break;
+			}
+		}
 	} else {
-		n = (n & (~CTRL_RXT_MASK)) | CTRL_RXT_BULK;
-		if (yes)
+		n = (n & (~CTRL_RXT_MASK));
+		if (yes) {
 			n |= CTRL_RXE | CTRL_RXR;
-		else
+		} else {
 			n &= ~(CTRL_RXE);
+		}
+		if (yes) {
+			switch (ep_type) {
+			case USB_ENDPOINT_XFER_BULK:
+				n |= CTRL_RXT_BULK;
+				break;
+			case USB_ENDPOINT_XFER_INT:
+				n |= CTRL_RXT_INT;
+				break;
+			case USB_ENDPOINT_XFER_ISOC:
+				n |= CTRL_RXT_ISOCH;
+				break;
+			default:
+				pr_err("%s: unsupported ep_type %d for %s\n",
+					__func__, ep_type, ept->ep.name);
+				break;
+			}
+		}
 	}
 	writel(n, USB_ENDPTCTRL(ept->num));
 
-#if 1
+#if 0
 	INFO("ept %d %s %s\n",
 	       ept->num, in ? "in" : "out", yes ? "enabled" : "disabled");
 #endif
@@ -468,16 +521,55 @@ static void ep0_queue_ack_complete(struct usb_ep *ep, struct usb_request *req)
 		struct usb_info *ui = ept->ui;
 		req->length = 0;
 		req->complete = ep0_complete;
-		usb_ept_queue_xfer(&ui->ep0out, req);
+		if (ui->ep0_dir == USB_DIR_IN)
+			usb_ept_queue_xfer(&ui->ep0out, req);
+		else
+			usb_ept_queue_xfer(&ui->ep0in, req);
 	} else
 		ep0_complete(ep, req);
+}
+
+static void ep0_setup_ack_complete(struct usb_ep *ep, struct usb_request *req)
+{
+	struct msm_endpoint *ept = to_msm_endpoint(ep);
+	struct usb_info *ui = ept->ui;
+	unsigned int temp;
+
+	if (!ui->test_mode)
+		return;
+
+	switch (ui->test_mode) {
+	case J_TEST:
+		pr_info("usb electrical test mode: (J)\n");
+		temp = readl(USB_PORTSC) & (~PORTSC_PTC);
+		writel(temp | PORTSC_PTC_J_STATE, USB_PORTSC);
+		break;
+
+	case K_TEST:
+		pr_info("usb electrical test mode: (K)\n");
+		temp = readl(USB_PORTSC) & (~PORTSC_PTC);
+		writel(temp | PORTSC_PTC_K_STATE, USB_PORTSC);
+		break;
+
+	case SE0_NAK_TEST:
+		pr_info("usb electrical test mode: (SE0-NAK)\n");
+		temp = readl(USB_PORTSC) & (~PORTSC_PTC);
+		writel(temp | PORTSC_PTC_SE0_NAK, USB_PORTSC);
+		break;
+
+	case TST_PKT_TEST:
+		pr_info("usb electrical test mode: (TEST_PKT)\n");
+		temp = readl(USB_PORTSC) & (~PORTSC_PTC);
+		writel(temp | PORTSC_PTC_TST_PKT, USB_PORTSC);
+		break;
+	}
 }
 
 static void ep0_setup_ack(struct usb_info *ui)
 {
 	struct usb_request *req = ui->setup_req;
 	req->length = 0;
-	req->complete = 0;
+	req->complete = ep0_setup_ack_complete;
 	usb_ept_queue_xfer(&ui->ep0in, req);
 }
 
@@ -507,48 +599,119 @@ static void handle_setup(struct usb_info *ui)
 	memcpy(&ctl, ui->ep0out.head->setup_data, sizeof(ctl));
 	writel(EPT_RX(0), USB_ENDPTSETUPSTAT);
 
+	if (ctl.bRequestType & USB_DIR_IN)
+		ui->ep0_dir = USB_DIR_IN;
+	else
+		ui->ep0_dir = USB_DIR_OUT;
+
 	/* any pending ep0 transactions must be canceled */
 	flush_endpoint(&ui->ep0out);
 	flush_endpoint(&ui->ep0in);
 
+#if 0
 	INFO("setup: type=%02x req=%02x val=%04x idx=%04x len=%04x\n",
 	       ctl.bRequestType, ctl.bRequest, ctl.wValue,
 	       ctl.wIndex, ctl.wLength);
+#endif
 
-	if (ctl.bRequestType == (USB_DIR_IN | USB_TYPE_STANDARD)) {
+	if ((ctl.bRequestType & (USB_DIR_IN | USB_TYPE_MASK)) ==
+					(USB_DIR_IN | USB_TYPE_STANDARD)) {
 		if (ctl.bRequest == USB_REQ_GET_STATUS) {
-			if (ctl.wLength == 2) {
-				memset(req->buf, 0, 2);
-				ep0_setup_send(ui, 2);
-				return;
+			if (ctl.wLength != 2)
+				goto stall;
+			switch (ctl.bRequestType & USB_RECIP_MASK) {
+			case USB_RECIP_ENDPOINT:
+			{
+				struct msm_endpoint *ept;
+				unsigned num =
+					ctl.wIndex & USB_ENDPOINT_NUMBER_MASK;
+				u16 temp = 0;
+
+				if (num == 0) {
+					memset(req->buf, 0, 2);
+					break;
+				}
+				if (ctl.wIndex & USB_ENDPOINT_DIR_MASK)
+					num += 16;
+				ept = &ui->ep0out + num;
+				temp = usb_ep_get_stall(ept);
+				temp = temp << USB_ENDPOINT_HALT;
+				memcpy(req->buf, &temp, 2);
+				break;
 			}
+			case USB_RECIP_DEVICE:
+			{
+				u16 temp = 0;
+
+				temp = 1 << USB_DEVICE_SELF_POWERED;
+				temp |= (ui->remote_wakeup <<
+						USB_DEVICE_REMOTE_WAKEUP);
+				memcpy(req->buf, &temp, 2);
+				break;
+			}
+			case USB_RECIP_INTERFACE:
+				memset(req->buf, 0, 2);
+				break;
+			default:
+				goto stall;
+			}
+			ep0_setup_send(ui, 2);
+			return;
 		}
 	}
 	if (ctl.bRequestType ==
 		    (USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_ENDPOINT)) {
-		if (ctl.bRequest == USB_REQ_CLEAR_FEATURE) {
+		if ((ctl.bRequest == USB_REQ_CLEAR_FEATURE) ||
+				(ctl.bRequest == USB_REQ_SET_FEATURE)) {
 			if ((ctl.wValue == 0) && (ctl.wLength == 0)) {
 				unsigned num = ctl.wIndex & 0x0f;
 
 				if (num != 0) {
+					struct msm_endpoint *ept;
+
 					if (ctl.wIndex & 0x80)
 						num += 16;
+					ept = &ui->ep0out + num;
 
-					usb_ept_enable(ui->ept + num, 1);
-					ep0_setup_ack(ui);
-					return;
+					if (ctl.bRequest == USB_REQ_SET_FEATURE)
+						msm72k_set_halt(&ept->ep, 1);
+					else
+						msm72k_set_halt(&ept->ep, 0);
 				}
+				goto ack;
 			}
 		}
 	}
 	if (ctl.bRequestType == (USB_DIR_OUT | USB_TYPE_STANDARD)) {
-		if (ctl.bRequest == USB_REQ_SET_CONFIGURATION)
+		if (ctl.bRequest == USB_REQ_SET_CONFIGURATION) {
 			ui->online = !!ctl.wValue;
-		else if (ctl.bRequest == USB_REQ_SET_ADDRESS) {
+			if (ui->online && ui->usb_connected)
+				ui->usb_connected(1);
+		} else if (ctl.bRequest == USB_REQ_SET_ADDRESS) {
 			/* write address delayed (will take effect
 			** after the next IN txn)
 			*/
 			writel((ctl.wValue << 25) | (1 << 24), USB_DEVICEADDR);
+			goto ack;
+		} else if (ctl.bRequest == USB_REQ_SET_FEATURE) {
+			switch (ctl.wValue) {
+			case USB_DEVICE_TEST_MODE:
+				switch (ctl.wIndex) {
+				case J_TEST:
+				case K_TEST:
+				case SE0_NAK_TEST:
+				case TST_PKT_TEST:
+					ui->test_mode = ctl.wIndex;
+					goto ack;
+				}
+				goto stall;
+			case USB_DEVICE_REMOTE_WAKEUP:
+				ui->remote_wakeup = 1;
+				goto ack;
+			}
+		} else if ((ctl.bRequest == USB_REQ_CLEAR_FEATURE) &&
+				(ctl.wValue == USB_DEVICE_REMOTE_WAKEUP)) {
+			ui->remote_wakeup = 0;
 			goto ack;
 		}
 	}
@@ -560,6 +723,7 @@ static void handle_setup(struct usb_info *ui)
 			return;
 	}
 
+stall:
 	/* stall ep0 on error */
 	ep0_setup_stall(ui);
 	return;
@@ -575,11 +739,11 @@ static void handle_endpoint(struct usb_info *ui, unsigned bit)
 	unsigned long flags;
 	unsigned info;
 
-	/*
+#if 0
 	INFO("handle_endpoint() %d %s req=%p(%08x)\n",
 		ept->num, (ept->flags & EPT_FLAG_IN) ? "in" : "out",
 		ept->req, ept->req ? ept->req->item_dma : 0);
-	*/
+#endif
 
 	/* expire all requests that are no longer active */
 	spin_lock_irqsave(&ui->lock, flags);
@@ -622,8 +786,6 @@ static void handle_endpoint(struct usb_info *ui, unsigned bit)
 		}
 		req->busy = 0;
 		req->live = 0;
-		if (req->dead)
-			do_free_req(ui, req);
 
 		if (req->req.complete) {
 			spin_unlock_irqrestore(&ui->lock, flags);
@@ -634,19 +796,43 @@ static void handle_endpoint(struct usb_info *ui, unsigned bit)
 	spin_unlock_irqrestore(&ui->lock, flags);
 }
 
+#define FLUSH_WAIT_US	5
+#define FLUSH_TIMEOUT	(2 * (USEC_PER_SEC / FLUSH_WAIT_US))
 static void flush_endpoint_hw(struct usb_info *ui, unsigned bits)
 {
+	uint32_t unflushed = 0;
+	uint32_t stat = 0;
+	int cnt = 0;
+
 	/* flush endpoint, canceling transactions
 	** - this can take a "large amount of time" (per databook)
 	** - the flush can fail in some cases, thus we check STAT
 	**   and repeat if we're still operating
 	**   (does the fact that this doesn't use the tripwire matter?!)
 	*/
-	do {
+	while (cnt < FLUSH_TIMEOUT) {
 		writel(bits, USB_ENDPTFLUSH);
-		while (readl(USB_ENDPTFLUSH) & bits)
-			udelay(100);
-	} while (readl(USB_ENDPTSTAT) & bits);
+		while (((unflushed = readl(USB_ENDPTFLUSH)) & bits) &&
+		       cnt < FLUSH_TIMEOUT) {
+			cnt++;
+			udelay(FLUSH_WAIT_US);
+		}
+
+		stat = readl(USB_ENDPTSTAT);
+		if (cnt >= FLUSH_TIMEOUT)
+			goto err;
+		if (!(stat & bits))
+			goto done;
+		cnt++;
+		udelay(FLUSH_WAIT_US);
+	}
+
+err:
+	pr_warning("%s: Could not complete flush! NOT GOOD! "
+		   "stat: %x unflushed: %x bits: %x\n", __func__,
+		   stat, unflushed, bits);
+done:
+	return;
 }
 
 static void flush_endpoint_sw(struct msm_endpoint *ept)
@@ -678,8 +864,6 @@ static void flush_endpoint_sw(struct msm_endpoint *ept)
 			req->req.complete(&ept->ep, &req->req);
 			spin_lock_irqsave(&ui->lock, flags);
 		}
-		if (req->dead)
-			do_free_req(ui, req);
 		req = req->next;
 	}
 	spin_unlock_irqrestore(&ui->lock, flags);
@@ -801,24 +985,95 @@ static void usb_prepare(struct usb_info *ui)
 
 static void usb_suspend_phy(struct usb_info *ui)
 {
+#if defined(CONFIG_ARCH_QSD8X50)
+	/* clear VBusValid and SessionEnd rising interrupts */
+	ulpi_write(ui, (1 << 1) | (1 << 3), 0x0f);
+	/* clear VBusValid and SessionEnd falling interrupts */
+	ulpi_write(ui, (1 << 1) | (1 << 3), 0x12);
+
+	/* Disable 60MHz CLKOUT in serial or carkit mode */
+	ulpi_write(ui, 0x08, 0x09);
+
+	/* Enable PHY Low Power Suspend - Clock Disable (PLPSCD) */
+	writel(readl(USB_PORTSC) | PORTSC_PHCD, USB_PORTSC);
+	mdelay(1);
+#else
 	/* clear VBusValid and SessionEnd rising interrupts */
 	ulpi_write(ui, (1 << 1) | (1 << 3), 0x0f);
 	/* clear VBusValid and SessionEnd falling interrupts */
 	ulpi_write(ui, (1 << 1) | (1 << 3), 0x12);
 	/* disable interface protect circuit to drop current consumption */
 	ulpi_write(ui, (1 << 7), 0x08);
+	/* clear the SuspendM bit -> suspend the PHY */
+	ulpi_write(ui, 1 << 6, 0x06);
+#endif
+}
+
+/* If this function returns < 0, the phy reset failed and we cannot
+ * continue at this point. The only solution is to wait until the next
+ * cable disconnect/reconnect to bring the phy back */
+static int usb_phy_reset(struct usb_info *ui)
+{
+	u32 val;
+	int ret;
+	int retries;
+
+	if (!ui->phy_reset)
+		return 0;
+
+	if (ui->hw_reset)
+		ui->hw_reset(1);
+	ui->phy_reset();
+	if (ui->hw_reset)
+		ui->hw_reset(0);
+
+#if defined(CONFIG_ARCH_QSD8X50)
+	val = readl(USB_PORTSC) & ~PORTSC_PTS_MASK;
+	writel(val | PORTSC_PTS_ULPI, USB_PORTSC);
+
+	/* XXX: only necessary for pre-45nm internal PHYs. */
+	for (retries = 3; retries > 0; retries--) {
+		ret = ulpi_write(ui, ULPI_FUNC_SUSPENDM, ULPI_FUNC_CTRL_CLR);
+		if (!ret)
+			break;
+		ui->phy_reset();
+	}
+	if (!retries)
+		return -1;
+
+	/* this reset calibrates the phy, if the above write succeeded */
+	ui->phy_reset();
+
+	/* XXX: pre-45nm internal phys have a known issue which can cause them
+	 * to lockup on reset. If ULPI accesses fail, try resetting the phy
+	 * again */
+	for (retries = 3; retries > 0; retries--) {
+		ret = ulpi_read(ui, ULPI_DEBUG_REG);
+		if (ret != 0xffffffff)
+			break;
+		ui->phy_reset();
+	}
+	if (!retries)
+		return -1;
+#endif
+	pr_info("msm_hsusb_phy_reset: success\n");
+	return 0;
 }
 
 static void usb_reset(struct usb_info *ui)
 {
 	unsigned long flags;
-	unsigned otgsc;
-
-	INFO("msm72k_udc: reset controller\n");
+	printk(KERN_INFO "hsusb: reset controller\n");
 
 	spin_lock_irqsave(&ui->lock, flags);
 	ui->running = 0;
 	spin_unlock_irqrestore(&ui->lock, flags);
+
+	/* To prevent phantom packets being received by the usb core on
+	 * some devices, put the controller into reset prior to
+	 * resetting the phy. */
+	writel(2, USB_USBCMD);
+	msleep(10);
 
 #if 0
 	/* we should flush and shutdown cleanly if already running */
@@ -826,17 +1081,24 @@ static void usb_reset(struct usb_info *ui)
 	msleep(2);
 #endif
 
-	otgsc = readl(USB_OTGSC);
+	if (usb_phy_reset(ui) < 0)
+		pr_err("%s: Phy reset failed!\n", __func__);
+
+	msleep(100);
 
 	/* RESET */
 	writel(2, USB_USBCMD);
 	msleep(10);
 
-	if (ui->phy_reset)
-		ui->phy_reset();
-
+#ifdef CONFIG_ARCH_MSM7X00A
 	/* INCR4 BURST mode */
 	writel(0x01, USB_SBUSCFG);
+#else
+	/* bursts of unspecified length. */
+	writel(0, USB_AHBBURST);
+	/* Use the AHB transactor */
+	writel(0, USB_AHBMODE);
+#endif
 
 	/* select DEVICE mode */
 	writel(0x12, USB_USBMODE);
@@ -863,7 +1125,6 @@ static void usb_reset(struct usb_info *ui)
 	}
 
 	/* enable interrupts */
-	writel(otgsc, USB_OTGSC);
 	writel(STS_URI | STS_SLI | STS_UI | STS_PCI, USB_USBINTR);
 
 	/* go to RUN mode (D+ pullup enable) */
@@ -902,6 +1163,10 @@ static int usb_free(struct usb_info *ui, int ret)
 		clk_put(ui->clk);
 	if (ui->pclk)
 		clk_put(ui->pclk);
+	if (ui->otgclk)
+		clk_put(ui->otgclk);
+	if (ui->ebi1clk)
+		clk_put(ui->ebi1clk);
 	kfree(ui);
 	return ret;
 }
@@ -911,10 +1176,11 @@ static void usb_do_work_check_vbus(struct usb_info *ui)
 	unsigned long iflags;
 
 	spin_lock_irqsave(&ui->lock, iflags);
-	if (vbus)
+	if (vbus) {
 		ui->flags |= USB_FLAG_VBUS_ONLINE;
-	else
+	} else {
 		ui->flags |= USB_FLAG_VBUS_OFFLINE;
+	}
 	spin_unlock_irqrestore(&ui->lock, iflags);
 }
 
@@ -939,8 +1205,12 @@ static void usb_do_work(struct work_struct *w)
 		case USB_STATE_IDLE:
 			if (flags & USB_FLAG_START) {
 				pr_info("msm72k_udc: IDLE -> ONLINE\n");
+				clk_set_rate(ui->ebi1clk, 128000000);
+				udelay(10);
 				clk_enable(ui->clk);
 				clk_enable(ui->pclk);
+				if (ui->otgclk)
+					clk_enable(ui->otgclk);
 				usb_reset(ui);
 
 				ui->state = USB_STATE_ONLINE;
@@ -961,6 +1231,9 @@ static void usb_do_work(struct work_struct *w)
 				msm72k_pullup(&ui->gadget, 0);
 				spin_unlock_irqrestore(&ui->lock, iflags);
 
+				if (ui->usb_connected)
+					ui->usb_connected(0);
+
 				/* terminate any transactions, etc */
 				flush_all_endpoints(ui);
 
@@ -968,12 +1241,18 @@ static void usb_do_work(struct work_struct *w)
 					printk(KERN_INFO "usb: notify offline\n");
 					ui->driver->disconnect(&ui->gadget);
 				}
+#ifdef CONFIG_ARCH_MSM_SCORPION
+				usb_phy_reset(ui);
+#endif
 
 				/* power down phy, clock down usb */
 				spin_lock_irqsave(&ui->lock, iflags);
 				usb_suspend_phy(ui);
 				clk_disable(ui->pclk);
 				clk_disable(ui->clk);
+				if (ui->otgclk)
+					clk_disable(ui->otgclk);
+				clk_set_rate(ui->ebi1clk, 0);
 				spin_unlock_irqrestore(&ui->lock, iflags);
 
 				ui->state = USB_STATE_OFFLINE;
@@ -993,9 +1272,19 @@ static void usb_do_work(struct work_struct *w)
 			 */
 			if ((flags & USB_FLAG_VBUS_ONLINE) && _vbus) {
 				pr_info("msm72k_udc: OFFLINE -> ONLINE\n");
+				clk_set_rate(ui->ebi1clk, 128000000);
+				udelay(10);
 				clk_enable(ui->clk);
 				clk_enable(ui->pclk);
+				if (ui->otgclk)
+					clk_enable(ui->otgclk);
 				usb_reset(ui);
+
+				/* detect shorted D+/D-, indicating AC power */
+				msleep(10);
+				if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
+					if (ui->usb_connected)
+						ui->usb_connected(2);
 
 				ui->state = USB_STATE_ONLINE;
 				usb_do_work_check_vbus(ui);
@@ -1011,40 +1300,36 @@ static void usb_do_work(struct work_struct *w)
  */
 void msm_hsusb_set_vbus_state(int online)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 	struct usb_info *ui = the_usb_info;
 
-	if (ui) {
+	if (ui)
 		spin_lock_irqsave(&ui->lock, flags);
-		if (vbus != online) {
-			vbus = online;
-			if (online)
+	if (vbus != online) {
+		vbus = online;
+		if (ui) {
+			if (online) {
 				ui->flags |= USB_FLAG_VBUS_ONLINE;
-			else
+			} else {
 				ui->flags |= USB_FLAG_VBUS_OFFLINE;
+			}
 			schedule_work(&ui->work);
 		}
-		spin_unlock_irqrestore(&ui->lock, flags);
-	} else {
-		printk(KERN_ERR "msm_hsusb_set_vbus_state called before driver initialized\n");
-		vbus = online;
 	}
+	if (ui)
+		spin_unlock_irqrestore(&ui->lock, flags);
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DEBUG_FS) && 0
 
 void usb_function_reenumerate(void)
 {
 	struct usb_info *ui = the_usb_info;
 
 	/* disable and re-enable the D+ pullup */
-	INFO("msm72k_udc: disable pullup\n");
-	writel(0x00080000, USB_USBCMD);
-
+	msm72k_pullup(&ui->gadget, false);
 	msleep(10);
-
-	INFO("msm72k_udc: enable pullup\n");
-	writel(0x00080001, USB_USBCMD);
+	msm72k_pullup(&ui->gadget, true);
 }
 
 static char debug_buffer[PAGE_SIZE];
@@ -1063,17 +1348,17 @@ static ssize_t debug_read_status(struct file *file, char __user *ubuf,
 	spin_lock_irqsave(&ui->lock, flags);
 
 	i += scnprintf(buf + i, PAGE_SIZE - i,
-		   "regs: setup=%08x prime=%08x stat=%08x done=%08x\n",
-		   readl(USB_ENDPTSETUPSTAT),
-		   readl(USB_ENDPTPRIME),
-		   readl(USB_ENDPTSTAT),
-		   readl(USB_ENDPTCOMPLETE));
+		       "regs: setup=%08x prime=%08x stat=%08x done=%08x\n",
+		       readl(USB_ENDPTSETUPSTAT),
+		       readl(USB_ENDPTPRIME),
+		       readl(USB_ENDPTSTAT),
+		       readl(USB_ENDPTCOMPLETE));
 	i += scnprintf(buf + i, PAGE_SIZE - i,
-		   "regs:   cmd=%08x   sts=%08x intr=%08x port=%08x\n\n",
-		   readl(USB_USBCMD),
-		   readl(USB_USBSTS),
-		   readl(USB_USBINTR),
-		   readl(USB_PORTSC));
+		       "regs:   cmd=%08x   sts=%08x intr=%08x port=%08x\n\n",
+		       readl(USB_USBCMD),
+		       readl(USB_USBSTS),
+		       readl(USB_USBINTR),
+		       readl(USB_PORTSC));
 
 
 	for (n = 0; n < 32; n++) {
@@ -1082,22 +1367,23 @@ static ssize_t debug_read_status(struct file *file, char __user *ubuf,
 			continue;
 
 		i += scnprintf(buf + i, PAGE_SIZE - i,
-			"ept%d %s cfg=%08x active=%08x next=%08x info=%08x\n",
-			ept->num, (ept->flags & EPT_FLAG_IN) ? "in " : "out",
-			ept->head->config, ept->head->active,
-			ept->head->next, ept->head->info);
+			       "ept%d %s cfg=%08x active=%08x next=%08x info=%08x\n",
+			       ept->num, (ept->flags & EPT_FLAG_IN) ? "in " : "out",
+			       ept->head->config, ept->head->active,
+			       ept->head->next, ept->head->info);
 
 		for (req = ept->req; req; req = req->next)
 			i += scnprintf(buf + i, PAGE_SIZE - i,
-			"  req @%08x next=%08x info=%08x page0=%08x %c %c\n",
-				req->item_dma, req->item->next,
-				req->item->info, req->item->page0,
-				req->busy ? 'B' : ' ',
-				req->live ? 'L' : ' ');
+				       "  req @%08x next=%08x info=%08x page0=%08x %c %c\n",
+				       req->item_dma, req->item->next,
+				       req->item->info, req->item->page0,
+				       req->busy ? 'B' : ' ',
+				       req->live ? 'L' : ' '
+				);
 	}
 
 	i += scnprintf(buf + i, PAGE_SIZE - i,
-			   "phy failure count: %d\n", ui->phy_fail_count);
+		       "phy failure count: %d\n", ui->phy_fail_count);
 
 	spin_unlock_irqrestore(&ui->lock, flags);
 
@@ -1154,8 +1440,8 @@ static void usb_debugfs_init(struct usb_info *ui)
 		return;
 
 	debugfs_create_file("status", 0444, dent, ui, &debug_stat_ops);
-	debugfs_create_file("reset", 0222, dent, ui, &debug_reset_ops);
-	debugfs_create_file("cycle", 0222, dent, ui, &debug_cycle_ops);
+	debugfs_create_file("reset", 0220, dent, ui, &debug_reset_ops);
+	debugfs_create_file("cycle", 0220, dent, ui, &debug_cycle_ops);
 }
 #else
 static void usb_debugfs_init(struct usb_info *ui) {}
@@ -1165,9 +1451,15 @@ static int
 msm72k_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 {
 	struct msm_endpoint *ept = to_msm_endpoint(_ep);
+	unsigned char ep_type =
+			desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 
-	_ep->maxpacket = le16_to_cpu(desc->wMaxPacketSize);
-	usb_ept_enable(ept, 1);
+	if (ep_type == USB_ENDPOINT_XFER_BULK)
+		_ep->maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	else
+		_ep->maxpacket = le16_to_cpu(64);
+	config_ept(ept);
+	usb_ept_enable(ept, 1, ep_type);
 	return 0;
 }
 
@@ -1175,7 +1467,7 @@ static int msm72k_disable(struct usb_ep *_ep)
 {
 	struct msm_endpoint *ept = to_msm_endpoint(_ep);
 
-	usb_ept_enable(ept, 0);
+	usb_ept_enable(ept, 0, 0);
 	return 0;
 }
 
@@ -1191,18 +1483,14 @@ msm72k_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	struct msm_request *req = to_msm_request(_req);
 	struct msm_endpoint *ept = to_msm_endpoint(_ep);
 	struct usb_info *ui = ept->ui;
-	unsigned long flags;
-	int dead = 0;
 
-	spin_lock_irqsave(&ui->lock, flags);
-	/* defer freeing resources if request is still busy */
-	if (req->busy)
-		dead = req->dead = 1;
-	spin_unlock_irqrestore(&ui->lock, flags);
+	/* request should not be busy */
+	BUG_ON(req->busy);
 
-	/* if req->dead, then we will clean up when the request finishes */
-	if (!dead)
-		do_free_req(ui, req);
+	if (req->alloced)
+		kfree(req->req.buf);
+	dma_pool_free(ui->pool, req->item, req->item_dma);
+	kfree(req);
 }
 
 static int
@@ -1213,12 +1501,21 @@ msm72k_queue(struct usb_ep *_ep, struct usb_request *req, gfp_t gfp_flags)
 
 	if (ep == &ui->ep0in) {
 		struct msm_request *r = to_msm_request(req);
-		r->gadget_complete = req->complete;
-		/* ep0_queue_ack_complete queue a receive for ACK before
-		** calling req->complete
-		*/
-		req->complete = ep0_queue_ack_complete;
+		if (!req->length)
+			goto ep_queue_done;
+		else {
+			if (ui->ep0_dir == USB_DIR_OUT) {
+				ep = &ui->ep0out;
+				ep->ep.driver_data = ui->ep0in.ep.driver_data;
+			}
+			/* ep0_queue_ack_complete queue a receive for ACK before
+			** calling req->complete
+			*/
+			r->gadget_complete = req->complete;
+			req->complete = ep0_queue_ack_complete;
+		}
 	}
+ep_queue_done:
 	return usb_ept_queue_xfer(ep, req);
 }
 
@@ -1249,18 +1546,19 @@ static int msm72k_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 				req->req.complete(&ep->ep, &req->req);
 				spin_lock_irqsave(&ui->lock, flags);
 			}
-			if (req->dead)
-				do_free_req(ui, req);
 			/* remove from linked list */
 			if (prev)
 				prev->next = cur->next;
 			else
 				ep->req = cur->next;
-			prev = cur;
+			if (ep->last == cur)
+				ep->last = prev;
 			/* break from loop */
 			cur = NULL;
-		} else
+		} else {
+			prev = cur;
 			cur = cur->next;
+		}
 	}
 	spin_unlock_irqrestore(&ui->lock, flags);
 
@@ -1270,7 +1568,34 @@ static int msm72k_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 static int
 msm72k_set_halt(struct usb_ep *_ep, int value)
 {
-	return -EOPNOTSUPP;
+	struct msm_endpoint *ept = to_msm_endpoint(_ep);
+	struct usb_info *ui = ept->ui;
+	unsigned int in = ept->flags & EPT_FLAG_IN;
+	unsigned int n;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ui->lock, flags);
+	n = readl(USB_ENDPTCTRL(ept->num));
+
+	if (in) {
+		if (value)
+			n |= CTRL_TXS;
+		else {
+			n &= ~CTRL_TXS;
+			n |= CTRL_TXR;
+		}
+	} else {
+		if (value)
+			n |= CTRL_RXS;
+		else {
+			n &= ~CTRL_RXS;
+			n |= CTRL_RXR;
+		}
+	}
+	writel(n, USB_ENDPTCTRL(ept->num));
+	spin_unlock_irqrestore(&ui->lock, flags);
+
+	return 0;
 }
 
 static int
@@ -1320,11 +1645,45 @@ static int msm72k_pullup(struct usb_gadget *_gadget, int is_active)
 {
 	struct usb_info *ui = container_of(_gadget, struct usb_info, gadget);
 
+	u32 cmd = (8 << 16);
+
+	/* disable/enable D+ pullup */
 	if (is_active) {
-		if (vbus && ui->driver)
-			writel(0x00080001, USB_USBCMD);
-	} else
-		writel(0x00080000, USB_USBCMD);
+		pr_info("msm_hsusb: enable pullup\n");
+		writel(cmd | 1, USB_USBCMD);
+	} else {
+		pr_info("msm_hsusb: disable pullup\n");
+		writel(cmd, USB_USBCMD);
+
+#if defined(CONFIG_ARCH_QSD8X50)
+		ulpi_write(ui, 0x48, 0x04);
+#endif
+	}
+
+	return 0;
+}
+
+static int msm72k_wakeup(struct usb_gadget *_gadget)
+{
+	struct usb_info *ui = container_of(_gadget, struct usb_info, gadget);
+	unsigned long flags;
+
+	if (!ui->remote_wakeup) {
+		pr_err("%s: remote wakeup not supported\n", __func__);
+		return -ENOTSUPP;
+	}
+
+	if (!ui->online) {
+		pr_err("%s: device is not configured\n", __func__);
+		return -ENODEV;
+	}
+
+	spin_lock_irqsave(&ui->lock, flags);
+	if ((readl(USB_PORTSC) & PORTSC_SUSP) == PORTSC_SUSP) {
+		pr_info("%s: enabling force resume\n", __func__);
+		writel(readl(USB_PORTSC) | PORTSC_FPR, USB_PORTSC);
+	}
+	spin_unlock_irqrestore(&ui->lock, flags);
 
 	return 0;
 }
@@ -1333,6 +1692,7 @@ static const struct usb_gadget_ops msm72k_ops = {
 	.get_frame	= msm72k_get_frame,
 	.vbus_session	= msm72k_udc_vbus_session,
 	.pullup		= msm72k_pullup,
+	.wakeup		= msm72k_wakeup,
 };
 
 static ssize_t usb_remote_wakeup(struct device *dev,
@@ -1358,12 +1718,14 @@ static int msm72k_probe(struct platform_device *pdev)
 	if (!ui)
 		return -ENOMEM;
 
+	spin_lock_init(&ui->lock);
 	ui->pdev = pdev;
 
 	if (pdev->dev.platform_data) {
 		struct msm_hsusb_platform_data *pdata = pdev->dev.platform_data;
 		ui->phy_reset = pdata->phy_reset;
 		ui->phy_init_seq = pdata->phy_init_seq;
+		ui->usb_connected = pdata->usb_connected;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -1394,6 +1756,26 @@ static int msm72k_probe(struct platform_device *pdev)
 	if (IS_ERR(ui->pclk))
 		return usb_free(ui, PTR_ERR(ui->pclk));
 
+	ui->otgclk = clk_get(&pdev->dev, "usb_otg_clk");
+	if (IS_ERR(ui->otgclk))
+		ui->otgclk = NULL;
+
+	ui->ebi1clk = clk_get(NULL, "ebi1_clk");
+	if (IS_ERR(ui->ebi1clk))
+		return usb_free(ui, PTR_ERR(ui->ebi1clk));
+
+	/* clear interrupts before requesting irq */
+	clk_enable(ui->clk);
+	clk_enable(ui->pclk);
+	if (ui->otgclk)
+		clk_enable(ui->otgclk);
+	writel(0, USB_USBINTR);
+	writel(0, USB_OTGSC);
+	if (ui->otgclk)
+		clk_disable(ui->otgclk);
+	clk_disable(ui->pclk);
+	clk_disable(ui->clk);
+
 	ret = request_irq(irq, usb_interrupt, 0, pdev->name, ui);
 	if (ret)
 		return usb_free(ui, ret);
@@ -1403,7 +1785,7 @@ static int msm72k_probe(struct platform_device *pdev)
 	ui->gadget.ops = &msm72k_ops;
 	ui->gadget.is_dualspeed = 1;
 	device_initialize(&ui->gadget.dev);
-	strcpy(ui->gadget.dev.bus_id, "gadget");
+	dev_set_name(&ui->gadget.dev, "gadget");
 	ui->gadget.dev.parent = &pdev->dev;
 	ui->gadget.dev.dma_mask = pdev->dev.dma_mask;
 

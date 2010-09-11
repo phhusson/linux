@@ -246,100 +246,10 @@ struct platform_device msm_device_nand = {
 		.platform_data	= &msm_nand_data,
 	},
 };
-
-/* adjust eye diagram, disable vbusvalid interrupts */
-static int hsusb_phy_init_seq[] = { 0x40, 0x31, 0x1, 0x0D, 0x1, 0x10, -1 };
-
-static char *usb_functions[] = {
-#if defined(CONFIG_USB_FUNCTION_ETHER)
-	"ether",
-#endif
-#if defined(CONFIG_USB_FUNCTION_MASS_STORAGE) 
-	"usb_mass_storage",
-#endif
-#if defined(CONFIG_USB_FUNCTION_UMS)
-	"ums",
-#endif
-#if defined(CONFIG_USB_FUNCTION_ADB)
-	"adb",
-#endif
-#if defined(CONFIG_USB_FUNCTION_FSYNC)
-	"fsync",
-#endif
-#if defined(CONFIG_USB_FUNCTION_DIAG)
-	"diag",
-#endif
-#if defined(CONFIG_USB_FUNCTION_SERIAL)
-	"fserial",
-#endif
-#if defined(CONFIG_USB_FUNCTION_PROJECTOR)
-	"projector",
-#endif
-#if defined(CONFIG_USB_FUNCTION_MTP_TUNNEL)
-	"mtp_tunnel",
-#endif
-
-};
-
-/* about .functions variable, please refer: drivers/usb/function/usb_function.h  */
-static struct msm_hsusb_product usb_products[] = {
-	{
-		.product_id	= 0x0c01,
-		.functions	= 0x00000001, /* usb_mass_storage */
-	},
-	{
-		.product_id	= 0x0c02,
-		.functions	= 0x00000003, /* usb_mass_storage + adb */
-	},
-	{
-		.product_id	= 0x0c03,
-		.functions	= 0x00000011, /* fserial + mass_storage */
-	},
-	{
-		.product_id	= 0x0c04,
-		.functions	= 0x00000013, /* fserial + adb + mass_storage */
-	},
-	{
-		.product_id = 0x0c05,
-		.functions	= 0x00000021, /* Projector + mass_storage */
-	},
-	{
-		.product_id = 0x0c06,
-		.functions	= 0x00000023, /* Projector + adb + mass_storage */
-	},
-	{
-		.product_id	= 0x0c07,
-		.functions	= 0x0000000B, /* diag + adb + mass_storage */
-	},
-	{
-		.product_id = 0x0c08,
-		.functions	= 0x00000009, /* diag + mass_storage */
-	},
-	{
-		.product_id = 0x0FFE,
-		.functions	= 0x00000004, /* internet sharing */
-	},
-
-};
-
-struct msm_hsusb_platform_data msm_hsusb_pdata = {
-	.phy_init_seq = hsusb_phy_init_seq,
-	.vendor_id = 0x0bb4,
-	.product_id = 0x0c01,
-	.version = 0x0100,
-	.product_name = "Smartphone",
-	.manufacturer_name = "HTC",
-
-	.functions = usb_functions,
-	.num_functions = ARRAY_SIZE(usb_functions),
-	.products = usb_products,
-	.num_products = ARRAY_SIZE(usb_products),
-};
-
 static struct resource resources_hsusb[] = {
 	{
 		.start	= MSM_HSUSB_PHYS,
-		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE-1,
+		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -356,46 +266,12 @@ struct platform_device msm_device_hsusb = {
 	.resource	= resources_hsusb,
 	.dev		= {
 		.coherent_dma_mask	= 0xffffffff,
-		.platform_data = &msm_hsusb_pdata,
 	},
 };
 
-#ifdef CONFIG_USB_FUNCTION_MASS_STORAGE
-static struct usb_mass_storage_platform_data mass_storage_pdata = {
-	.nluns = 1,
-	.buf_size = 16384,
-	.vendor = "HTC     ",
-	.product = "Android Phone   ",
-	.release = 0x0100,
-};
-
-static struct platform_device msm_device_usb_mass_storage = {
-	.name = "usb_mass_storage",
-	.id = -1,
-	.dev = {
-		.platform_data = &mass_storage_pdata,
-	},
-};
-#endif
 void __init msm_add_usb_devices(void (*phy_reset) (void), void (*phy_shutdown) (void), int *init_seq)
 {
-	// get size of init_seq
-	int size=0;
-	while (!(init_seq[size++]<0));
 
-	if (phy_reset)
-		msm_hsusb_pdata.phy_reset = phy_reset;
-
-	if (phy_shutdown)
-		msm_hsusb_pdata.phy_shutdown = phy_shutdown;
-	if(init_seq)
-		memcpy(msm_hsusb_pdata.phy_init_seq, init_seq, size*sizeof(int));
-
-	msm_hsusb_pdata.serial_number="000000000000";
-	platform_device_register(&msm_device_hsusb);
-#ifdef CONFIG_USB_FUNCTION_MASS_STORAGE
-	platform_device_register(&msm_device_usb_mass_storage);
-#endif
 }
 
 struct platform_device msm_device_smd = {

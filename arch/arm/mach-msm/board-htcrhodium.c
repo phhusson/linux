@@ -59,6 +59,17 @@
 static void htcrhodium_device_specific_fixes(void);
 
 extern int init_mmc(void);
+
+#define PCOM_GPIO_CFG(a,b,c,d,e) DEX_GPIO_CFG(a,b,c,d,e,0)
+static void config_gpio_table(struct msm_gpio_config *table, int len)
+{
+	int n;
+	struct msm_gpio_config id;
+	for(n = 0; n < len; n++) {
+		id = table[n];
+		msm_gpio_set_function( id );
+	}
+}
 static struct resource rhodium_keypad_resources[] = {
 	{
 		.start = MSM_GPIO_TO_INT(RHODIUM_KPD_IRQ),
@@ -112,32 +123,73 @@ static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
 };
 #endif
 
-static int usb_phy_init_seq_raph100[] = {
+static struct msm_gpio_config ulpi_on_gpio_table[] = {
+	DEX_GPIO_CFG(0x6f, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x70, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x71, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x72, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x73, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x74, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x75, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x76, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x77, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x78, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x79, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+};
+
+static struct msm_gpio_config ulpi_off_gpio_table[] = {
+	DEX_GPIO_CFG(0x6f, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x70, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x71, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x72, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x73, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x74, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x75, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x76, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x77, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x78, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x79, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+};
+
+static int usb_phy_init_seq_rhod[] = {
         0x40, 0x31, /* Leave this pair out for USB Host Mode */
         0x1D, 0x0D,
         0x1D, 0x10,
+	0x5, 0xA,
         -1
 };
-
-static void usb_phy_reset(void)
-{
-
-	gpio_set_value(0x64, 3); 
-	mdelay(3);
-	gpio_set_value(0x64, 0);
-	mdelay(3);
-
-}
-
 static void usb_phy_shutdown(void)
 {
-
+	gpio_set_value(0x64, 0); 
+	gpio_set_value(0x69, 0);
+}
+static void usb_phy_reset(void)
+{
+	usb_phy_shutdown();
+	gpio_set_value(0x54, 1);
+	gpio_set_value(0x3f, 0);	
+	gpio_set_value(0x69, 1);
 	gpio_set_value(0x64, 0); 
 	mdelay(3);
-	gpio_set_value(0x64, 3);
+	gpio_set_value(0x64, 1);
 	mdelay(3);
 
 }
+
+static void rhod_usb_hw_reset(int reset) {
+	printk("Rhodium: Reset usb\n");
+}
+ 
+static void usb_connected(int on) {
+	printk("Rhodium: Connected usb == %x\n", on);
+}
+
+static struct msm_hsusb_platform_data msm_hsusb_pdata = {
+    .phy_init_seq       = usb_phy_init_seq_rhod,
+    .phy_reset     	= usb_phy_reset,
+//    .hw_reset       	= rhod_usb_hw_reset,
+    .usb_connected      = usb_connected,
+};
 
 static struct platform_device raphael_rfkill = {
 	.name = "htcraphael_rfkill",
@@ -252,6 +304,7 @@ static struct platform_device rhodium_h2w = {
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
+	&msm_device_hsusb,
 	&msm_device_nand,
 	&msm_device_i2c,
 	&msm_device_rtc,
@@ -365,8 +418,9 @@ static void __init halibut_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	
-	msm_add_usb_devices(usb_phy_reset, usb_phy_shutdown, usb_phy_init_seq_raph100);
-
+	/* no longer need this but may use it if devices.c gets updated for everyone */
+	//msm_add_usb_devices(usb_phy_reset, usb_phy_shutdown, usb_phy_init_seq_raph100);
+	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 	init_mmc();
 
 #ifdef CONFIG_SERIAL_MSM_HS
@@ -378,8 +432,9 @@ static void __init halibut_init(void)
 	 * For now we just declare that VBUS is present at boot and USB
 	 * copes, but this is not ideal.
 	 */
-	msm_hsusb_set_vbus_state(1);
+	//msm_hsusb_set_vbus_state(1);
 
+	msm_hsusb_set_vbus_state(!!readl(MSM_SHARED_RAM_BASE+0xef20c));
 	msm_init_pmic_vibrator();
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {
@@ -421,6 +476,14 @@ static void htcrhodium_device_specific_fixes(void)
 	msm_htc_hw_pdata.battery_smem_field_size = 2;
 	msm_battery_pdata.smem_offset = 0xfc110;
 	msm_battery_pdata.smem_field_size = 2;
+/*
+	writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
+	void __iomem	*mmio;
+	mmio = ioremap(0xA8240800, 0x04);
+	writel(0,mmio);
+	printk("AXIGE = 0x%8.8x\n", readl(mmio));
+	iounmap(mmio);
+*/
 }
 
 MACHINE_START(HTCRHODIUM, "HTC Rhodium cellphone")

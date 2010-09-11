@@ -130,8 +130,8 @@ static struct msm_clock_params msm_clock_parameters_6125[] = {
 	//{ .clk_id = ACPU_CLK,							.name="ACPU_CLK",},		
 	{ .clk_id = ADM_CLK,		.idx =  5,				.name="ADM_CLK",},
 	{ .clk_id = ADSP_CLK,				.offset = 0x34,		.name="ADSP_CLK",},
-	{ .clk_id = EBI1_CLK,		.idx =  13,	.offset = 0x28,		.name="EBI2_CLK",},
-	{ .clk_id = EBI2_CLK,		.idx =  12,	.offset = 0x2C,		.name="EBI2_CLK",},
+	{ .clk_id = EBI1_CLK,		.idx =  12,	.offset = 0x2C,		.name="EBI1_CLK",},
+	{ .clk_id = EBI2_CLK,		.idx =  13,	.offset = 0x28,		.name="EBI2_CLK",},
 	{ .clk_id = ECODEC_CLK,				.offset = 0x4C,		.name="ECODEC_CLK",},
 	{ .clk_id = EMDH_CLK,			   	.offset = 0x50,		.name="EMDH_CLK"},
 	{ .clk_id = GP_CLK,			   	.offset = 0x5c,		.name="GP_CLK" },
@@ -167,9 +167,10 @@ static struct msm_clock_params msm_clock_parameters_6125[] = {
 	{ .clk_id = UART3_CLK,				.offset = 0xe0,		.name="UART3",},
 	{ .clk_id = UART1DM_CLK,	.idx = 17, 	.offset = 0xd4,		.name="UART1DM_CLK",},
 	{ .clk_id = UART2DM_CLK,	.idx = 26, 	.offset = 0xdc,		.name="UART2DM_CLK",},
-	{ .clk_id = USB_HS_CLK,				.offset = 0x2c0,	.name="USB_HS_CLK",},
+//	{ .clk_id = USB_HS_CLK,				.offset = 0x2c0,	.name="USB_HS_CLK",},
+	{ .clk_id = USB_HS_CLK,				.offset = 0xe8,		.name="USB_HS_CLK",},
 	{ .clk_id = USB_HS_PCLK,	.idx = 25,				.name="USB_HS_PCLK",},
-	//{ .clk_id = USB_OTG_CLK,						.name="USB_HS_PCLK",},
+	{ .clk_id = USB_OTG_CLK,			.offset = 0x2c0,	.name="USB_OTG_CLK",},
 //	{ .clk_id = VDC_CLK,			   	.offset = 0xF0,		.name="VDC_CLK"},
 //	{ .clk_id = VFE_CLK, 				.offset = 0x44,		.name="VFE_CLK", },
 //	{ .clk_id = VFE_MDC_CLK, 			.offset = 0x44,		.name="VFE_MDC_CLK", },
@@ -244,12 +245,6 @@ static void set_grp_clk( int on ) {
 		//writel(readl(MSM_AXI_BASE+0x10080) &~ 0x1,MSM_AXI_BASE+0x10080);
 		REG_AND( MSM_AXI_RESET, 0x20 );
 		REG_AND( MSM_ROW_RESET, 0x20000 );
-
-		//void __iomem	*mmio;
-	        //mmio = ioremap(0xa0010200, 0x0C);
-		//D("0x%8.8x | 0x%8.8x 0x%8.8x \n",0xa0010200, readl(mmio),readl(mmio+0x04));
-		//REG_OR(mmio, 0x40000);
-		//iounmap(mmio);
 
 	} else {
 		REG_OR( MSM_GRP_NS_REG, 0x800 );
@@ -342,7 +337,8 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 				// This clock requires MD and NS regs to set frequency:
 				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
 				writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset);
-				if(debug_mask&DEBUG_MDNS)
+				//if(debug_mask&DEBUG_MDNS)
+				if (id == EBI1_CLK) 
 					D("%s: %u, freq=%lu calc_freq=%u pll%d=%u expected pll =%u\n", __func__, id,
 				  msm_clock_freq_parameters[n].freq,
 				  msm_clock_freq_parameters[n].calc_freq,
@@ -477,6 +473,39 @@ static void pc_clk_disable(uint32_t id)
 }
 */
 
+/* For Reference 
+typedef struct _tagGLBL_CLK_ENA
+{
+	unsigned long axi_smi_clk_ena		: 1;		//0
+	unsigned long axi_li_a11s_clk_ena	: 1;		//1
+	unsigned long axi_li_apps_clk_ena	: 1;		//2
+	unsigned long axi_li_vg_clk_ena		: 1;		//3
+	unsigned long marm_etm_clk_ena		: 1;		//4
+	unsigned long adm_clk_ena			: 1;	//5
+	unsigned long ce_clk_ena			: 1;	//6
+	unsigned long sdc1_h_clk_ena		: 1;		//7
+	unsigned long sdc2_h_clk_ena		: 1;		//8
+	unsigned long mdp_clk_ena			: 1;	//9
+	unsigned long axi_arb_clk_ena		: 1;		//10
+	unsigned long axi_li_mss_clk_en		: 1;		//11
+	unsigned long axi_ebi1_clk_ena		: 1;		//12
+	unsigned long ebi2_clk_ena			: 1;	//13
+	unsigned long pbus_clk_ena			: 1;	//14
+	unsigned long ahb0_clk_ena			: 1;	//15
+	unsigned long ahb1_clk_ena			: 1;	//16
+	unsigned long uart1dm_p_clk_ena		: 1;		//17
+	unsigned long tsif_p_clk_ena		: 1;		//18
+	unsigned long reversed				: 1;	//19
+	unsigned long marm_clk_ena			: 1;	//20
+	unsigned long unused_bits_24_21		: 4;		
+	unsigned long	usbh_p_clk_ena			: 1;	//25
+	unsigned long	uart2dm_p_clk_ena		: 1;	//26
+	unsigned long	sdc3_h_clk_ena			: 1;	//27
+	unsigned long sdc4_h_clk_ena			: 1;	//28
+	unsigned long glbl_root_ena			: 1;	//29
+}
+GLBL_CLK_ENA;
+*/
 static int pc_clk_enable(uint32_t id) {
 	switch (id)
 	{
@@ -492,11 +521,13 @@ static int pc_clk_enable(uint32_t id) {
 	case SDC4_PCLK:
 		writel(readl(MSM_CLK_CTL_BASE)|(1<<28),MSM_CLK_CTL_BASE);
 		break;
-	case SDC1_CLK:		
+	case SDC1_CLK:
+		/* ignore .. not needed */		
 		//writel((readl(MSM_CLK_CTL_BASE + 0xa4) &0xfff0f000) | 0xB0044, MSM_CLK_CTL_BASE + 0xa4);
 		//writel(readl(MSM_CLK_CTL_BASE+0xa4)|0xB00,MSM_CLK_CTL_BASE+0xa4);
 		break;
 	case SDC2_CLK:
+		/* ignore .. not needed */
 		//writel((readl(MSM_CLK_CTL_BASE + 0xac) &0xfffff000) | 0x44, MSM_CLK_CTL_BASE + 0xac);
 		//writel(readl(MSM_CLK_CTL_BASE+0xac)|0xB00,MSM_CLK_CTL_BASE+0xac);
 		
@@ -553,6 +584,16 @@ static int pc_clk_enable(uint32_t id) {
 	case SDAC_CLK:
 		writel(readl(MSM_CLK_CTL_BASE+0x9C)| 0xB00,MSM_CLK_CTL_BASE+0x9C);
 		break;
+	case EBI1_CLK:
+		/* ignore .. not needed */
+		//writel(readl(MSM_CLK_CTL_BASE) | (1<<12),MSM_CLK_CTL_BASE);
+		//writel(readl(MSM_CLK_CTL_BASE+0x2C)| 0x1280,MSM_CLK_CTL_BASE+0x2C);
+		break;
+	case USB_OTG_CLK:
+		/* ignore .. not needed */
+		//writel(readl(MSM_CLK_CTL_BASE+0xe8)| 0xB00,MSM_CLK_CTL_BASE+0xe8);
+		//printk("Enabling OTG\n");
+		break;
 	default:
 		printk(KERN_WARNING "%s: FIXME! How to enable clock %u ?\n", __func__, id);
         	return -1;  
@@ -577,9 +618,11 @@ static void pc_clk_disable(uint32_t id)
 		writel(readl(MSM_CLK_CTL_BASE)& ~(1<<28),MSM_CLK_CTL_BASE);
 		break;
 	case SDC1_CLK:
+		/* ignore .. not needed .. however rate is still being set*/
 		//writel(readl(MSM_CLK_CTL_BASE+0xa4)& ~0xB00,MSM_CLK_CTL_BASE+0xa4);
 		break;
 	case SDC2_CLK:
+		/* ignore .. not needed .. however rate is still being set*/
 		//writel(readl(MSM_CLK_CTL_BASE+0xac)& ~0xB00,MSM_CLK_CTL_BASE+0xac);
 		break;
 	case SDC3_CLK:
@@ -600,6 +643,7 @@ static void pc_clk_disable(uint32_t id)
 		//print_clocks();
 		break;
 	case IMEM_CLK:
+		/* ignore .. not needed since grp function enables this as well*/
 		//writel(readl(MSM_CLK_CTL_BASE+0x84)& ~0x280,MSM_CLK_CTL_BASE+0x84);
 		break;
 	case UART1_CLK:
@@ -630,6 +674,16 @@ static void pc_clk_disable(uint32_t id)
 		break;
 	case SDAC_CLK:
 		writel(readl(MSM_CLK_CTL_BASE+0x9C)& ~0xB00,MSM_CLK_CTL_BASE+0x9C);
+		break;
+	case EBI1_CLK:
+		/* ignore .. not needed */
+		//writel(readl(MSM_CLK_CTL_BASE) &~ (1<<12),MSM_CLK_CTL_BASE);
+		//writel(readl(MSM_CLK_CTL_BASE+0x2C)& ~0x1280,MSM_CLK_CTL_BASE+0x2C);
+		break;
+	case USB_OTG_CLK:
+		/* ignore .. not needed */
+		//writel(readl(MSM_CLK_CTL_BASE+0xe8)& ~0xB00,MSM_CLK_CTL_BASE+0xe8);
+		//printk("disabling OTG\n");
 		break;
 	default:
 		printk(KERN_WARNING "%s: FIXME! How to disable clock %u ?\n", __func__, id);
@@ -686,6 +740,7 @@ static unsigned long pc_clk_get_rate(uint32_t id)
 		case SDAC_CLK:
 		case TV_DAC_CLK:
 		case TV_ENC_CLK:
+		case EBI1_CLK:
 		case USB_OTG_CLK:
 			rate = get_mdns_host_clock(id);
 			break;

@@ -479,7 +479,7 @@ int htc_cable_status_update(int status)
 	mutex_unlock(&htc_batt_info.lock);
 
 	htc_battery_set_charging(status);
-	msm_hsusb_set_vbus_state((source==CHARGER_USB) || (source==CHARGER_AC));
+	//msm_hsusb_set_vbus_state((source==CHARGER_USB) || (source==CHARGER_AC));
 
 	if (  source == CHARGER_USB || source==CHARGER_AC ) {
 		wake_lock(&vbus_wake_lock);
@@ -519,6 +519,7 @@ static void htc_bat_work(struct work_struct *work) {
 		rc = battery_charging_ctrl(DISABLE);
 		BATT("charging disable rc=%d\n", rc);
 	}
+	msm_hsusb_set_vbus_state(!!readl(MSM_SHARED_RAM_BASE+ 0xfc00c));
 }
 
 static short battery_table_4[] = {
