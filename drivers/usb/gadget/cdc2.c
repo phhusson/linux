@@ -43,11 +43,30 @@
 
 /*-------------------------------------------------------------------------*/
 
+/*
+ * Kbuild is not very cooperative with respect to linking separately
+ * compiled library objects into one module.  So for now we won't use
+ * separate compilation ... ensuring init/exit sections work to shrink
+ * the runtime footprint, and giving us at least some parts of what
+ * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
+ */
+
+#include "composite.c"
+#include "usbstring.c"
+#include "config.c"
+#include "epautoconf.c"
+#include "u_serial.c"
+#include "f_acm.c"
+#include "f_ecm.c"
+#include "u_ether.c"
+
+/*-------------------------------------------------------------------------*/
+
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 
 	.bDeviceClass =		USB_CLASS_COMM,
 	.bDeviceSubClass =	0,
@@ -55,8 +74,8 @@ static struct usb_device_descriptor device_desc = {
 	/* .bMaxPacketSize0 = f(hardware) */
 
 	/* Vendor and product id can be overridden by module parameters.  */
-	.idVendor =		__constant_cpu_to_le16(CDC_VENDOR_NUM),
-	.idProduct =		__constant_cpu_to_le16(CDC_PRODUCT_NUM),
+	.idVendor =		cpu_to_le16(CDC_VENDOR_NUM),
+	.idProduct =		cpu_to_le16(CDC_PRODUCT_NUM),
 	/* .bcdDevice = f(hardware) */
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
@@ -136,7 +155,6 @@ static struct usb_configuration cdc_config_driver = {
 	.bConfigurationValue	= 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower		= 1,	/* 2 mA, minimal */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -148,7 +166,8 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 	int			status;
 
 	if (!can_support_ecm(cdev->gadget)) {
-		ERROR(cdev, "controller '%s' not usable\n", gadget->name);
+		dev_err(&gadget->dev, "controller '%s' not usable\n",
+				gadget->name);
 		return -EINVAL;
 	}
 
@@ -174,7 +193,7 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 				gadget->name,
 				cdc_config_driver.label);
 		device_desc.bcdDevice =
-			__constant_cpu_to_le16(0x0300 | 0x0099);
+			cpu_to_le16(0x0300 | 0x0099);
 	}
 
 
@@ -203,7 +222,8 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail1;
 
-	INFO(cdev, "%s, version: " DRIVER_VERSION "\n", DRIVER_DESC);
+	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
+			DRIVER_DESC);
 
 	return 0;
 

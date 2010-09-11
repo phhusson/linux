@@ -43,7 +43,9 @@
 #include <mach/io.h>
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
-
+#ifdef CONFIG_USB_ANDROID
+#include <linux/usb/android_composite.h>
+#endif
 #ifdef CONFIG_HTC_HEADSET
 #include <mach/htc_headset.h>
 #endif
@@ -60,7 +62,6 @@ static void htcrhodium_device_specific_fixes(void);
 
 extern int init_mmc(void);
 
-#define PCOM_GPIO_CFG(a,b,c,d,e) DEX_GPIO_CFG(a,b,c,d,e,0)
 static void config_gpio_table(struct msm_gpio_config *table, int len)
 {
 	int n;
@@ -160,20 +161,22 @@ static int usb_phy_init_seq_rhod[] = {
 };
 static void usb_phy_shutdown(void)
 {
-	gpio_set_value(0x64, 0); 
-	gpio_set_value(0x69, 0);
+	printk("%s: %s\n", __FILE__, __func__);
+	gpio_set_value(0x64, 1); 
+	gpio_set_value(0x64, 0);
 }
 static void usb_phy_reset(void)
 {
+	printk("%s: %s\n", __FILE__, __func__);
 	usb_phy_shutdown();
-	gpio_set_value(0x54, 1);
-	gpio_set_value(0x3f, 0);	
-	gpio_set_value(0x69, 1);
+	//gpio_set_value(0x54, 1);
+	//gpio_set_value(0x3f, 0);	
+	//gpio_set_value(0x69, 1);
 	gpio_set_value(0x64, 0); 
 	mdelay(3);
 	gpio_set_value(0x64, 1);
 	mdelay(3);
-
+	config_gpio_table(ulpi_on_gpio_table, ARRAY_SIZE(ulpi_on_gpio_table));
 }
 
 static void rhod_usb_hw_reset(int reset) {
@@ -182,14 +185,146 @@ static void rhod_usb_hw_reset(int reset) {
  
 static void usb_connected(int on) {
 	printk("Rhodium: Connected usb == %x\n", on);
+	if (!on) config_gpio_table(ulpi_off_gpio_table, ARRAY_SIZE(ulpi_off_gpio_table));
 }
 
 static struct msm_hsusb_platform_data msm_hsusb_pdata = {
     .phy_init_seq       = usb_phy_init_seq_rhod,
     .phy_reset     	= usb_phy_reset,
-//    .hw_reset       	= rhod_usb_hw_reset,
+//    .hw_reset       	= usb_phy_shutdown,
     .usb_connected      = usb_connected,
 };
+/***************************************************************
+ * Android stuff
+ ***************************************************************/
+#ifdef CONFIG_USB_ANDROID
+static char *usb_functions_ums[] = {
+	"usb_mass_storage",
+};
+
+static char *usb_functions_ums_adb[] = {
+	"usb_mass_storage",
+	"adb",
+};
+
+static char *usb_functions_rndis[] = {
+	"rndis",
+};
+
+static char *usb_functions_rndis_adb[] = {
+	"rndis",
+	"adb",
+};
+
+#ifdef CONFIG_USB_ANDROID_DIAG
+static char *usb_functions_adb_diag[] = {
+	"usb_mass_storage",
+	"adb",
+	"diag",
+};
+#endif
+
+static char *usb_functions_all[] = {
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	"rndis",
+#endif
+	"usb_mass_storage",
+	"adb",
+#ifdef CONFIG_USB_ANDROID_ACM
+	"acm",
+#endif
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
+};
+
+static struct android_usb_product usb_products[] = {
+	{
+		.product_id	= 0x0ffe,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis),
+		.functions	= usb_functions_rndis,
+	},	
+	{
+		.product_id	= 0x0c01,
+		.num_functions	= ARRAY_SIZE(usb_functions_ums),
+		.functions	= usb_functions_ums,
+	},
+	{
+		.product_id	= 0x0c02,
+		.num_functions	= ARRAY_SIZE(usb_functions_ums_adb),
+		.functions	= usb_functions_ums_adb,
+	},
+	{
+		.product_id	= 0x0ffc,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis_adb),
+		.functions	= usb_functions_rndis_adb,
+	},
+#ifdef CONFIG_USB_ANDROID_DIAG
+	{
+		.product_id	= 0x0fff,
+		.num_functions	= ARRAY_SIZE(usb_functions_adb_diag),
+		.functions	= usb_functions_adb_diag,
+	},
+#endif
+};
+
+static struct usb_mass_storage_platform_data mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= "HTC",
+	.product	= "XDA",
+	.release	= 0x0100,
+};
+
+static struct platform_device usb_mass_storage_device = {
+	.name	= "usb_mass_storage",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &mass_storage_pdata,
+	},
+};
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+static struct usb_ether_platform_data rndis_pdata = {
+	/* ethaddr is filled by board_serialno_setup */
+	.vendorID	= 0x18d1,
+	.vendorDescr	= "HTC",
+};
+
+static struct platform_device rndis_device = {
+	.name	= "rndis",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &rndis_pdata,
+	},
+};
+#endif
+
+
+static struct android_usb_platform_data android_usb_pdata = {
+	.vendor_id	= 0x0bb4,
+	.product_id	= 0x0c01,
+	.version	= 0x0100,
+	.serial_number		= "000000000000",
+	.product_name		= "XDA",
+	.manufacturer_name	= "HTC",
+	.num_products = ARRAY_SIZE(usb_products),
+	.products = usb_products,
+	.num_functions = ARRAY_SIZE(usb_functions_all),
+	.functions = usb_functions_all,
+};
+
+static struct platform_device android_usb_device = {
+	.name	= "android_usb",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &android_usb_pdata,
+	},
+};
+#endif
+
+/***************************************************************
+ * End of android stuff
+ ***************************************************************/
 
 static struct platform_device raphael_rfkill = {
 	.name = "htcraphael_rfkill",
@@ -305,6 +440,15 @@ static struct platform_device rhodium_h2w = {
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_hsusb,
+#ifdef CONFIG_USB_ANDROID
+	&android_usb_device,
+#endif
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	&rndis_device,
+#endif
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
+	&usb_mass_storage_device,
+#endif
 	&msm_device_nand,
 	&msm_device_i2c,
 	&msm_device_rtc,
@@ -434,7 +578,8 @@ static void __init halibut_init(void)
 	 */
 	//msm_hsusb_set_vbus_state(1);
 
-	msm_hsusb_set_vbus_state(!!readl(MSM_SHARED_RAM_BASE+0xef20c));
+	msm_hsusb_set_vbus_state(!!readl(MSM_SHARED_RAM_BASE+0xfc00c));
+
 	msm_init_pmic_vibrator();
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {

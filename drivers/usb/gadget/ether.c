@@ -96,6 +96,29 @@ static inline bool has_rndis(void)
 
 /*-------------------------------------------------------------------------*/
 
+/*
+ * Kbuild is not very cooperative with respect to linking separately
+ * compiled library objects into one module.  So for now we won't use
+ * separate compilation ... ensuring init/exit sections work to shrink
+ * the runtime footprint, and giving us at least some parts of what
+ * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
+ */
+#include "composite.c"
+#include "usbstring.c"
+#include "config.c"
+#include "epautoconf.c"
+
+#include "f_ecm.c"
+#include "f_subset.c"
+#ifdef	CONFIG_USB_ETH_RNDIS
+#include "f_rndis.c"
+#include "rndis.c"
+#endif
+#include "f_eem.c"
+#include "u_ether.c"
+
+/*-------------------------------------------------------------------------*/
+
 /* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
  * Instead:  allocate your own, using normal USB-IF procedures.
  */
@@ -128,13 +151,17 @@ static inline bool has_rndis(void)
 #define RNDIS_VENDOR_NUM	0x0525	/* NetChip */
 #define RNDIS_PRODUCT_NUM	0xa4a2	/* Ethernet/RNDIS Gadget */
 
+/* For EEM gadgets */
+#define EEM_VENDOR_NUM		0x1d6b	/* Linux Foundation */
+#define EEM_PRODUCT_NUM		0x0102	/* EEM Gadget */
+
 /*-------------------------------------------------------------------------*/
 
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		__constant_cpu_to_le16 (0x0200),
+	.bcdUSB =		cpu_to_le16 (0x0200),
 
 	.bDeviceClass =		USB_CLASS_COMM,
 	.bDeviceSubClass =	0,
@@ -145,8 +172,8 @@ static struct usb_device_descriptor device_desc = {
 	 * we support.  (As does bNumConfigurations.)  These values can
 	 * also be overridden by module parameters.
 	 */
-	.idVendor =		__constant_cpu_to_le16 (CDC_VENDOR_NUM),
-	.idProduct =		__constant_cpu_to_le16 (CDC_PRODUCT_NUM),
+	.idVendor =		cpu_to_le16 (CDC_VENDOR_NUM),
+	.idProduct =		cpu_to_le16 (CDC_PRODUCT_NUM),
 	/* .bcdDevice = f(hardware) */
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
@@ -220,13 +247,20 @@ static struct usb_configuration rndis_config_driver = {
 	.bConfigurationValue	= 2,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower		= 1,	/* 2 mA, minimal */
 };
 
 /*-------------------------------------------------------------------------*/
 
+#ifdef CONFIG_USB_ETH_EEM
+static int use_eem = 1;
+#else
+static int use_eem;
+#endif
+module_param(use_eem, bool, 0);
+MODULE_PARM_DESC(use_eem, "use CDC EEM mode");
+
 /*
- * We _always_ have an ECM or CDC Subset configuration.
+ * We _always_ have an ECM, CDC Subset, or EEM configuration.
  */
 static int __init eth_do_config(struct usb_configuration *c)
 {
@@ -237,7 +271,9 @@ static int __init eth_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	if (can_support_ecm(c->cdev->gadget))
+	if (use_eem)
+		return eem_bind_config(c);
+	else if (can_support_ecm(c->cdev->gadget))
 		return ecm_bind_config(c, hostaddr);
 	else
 		return geth_bind_config(c, hostaddr);
@@ -249,7 +285,6 @@ static struct usb_configuration eth_config_driver = {
 	.bConfigurationValue	= 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower		= 1,	/* 2 mA, minimal */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -266,7 +301,12 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 		return status;
 
 	/* set up main config label and device descriptor */
-	if (can_support_ecm(cdev->gadget)) {
+	if (use_eem) {
+		/* EEM */
+		eth_config_driver.label = "CDC Ethernet (EEM)";
+		device_desc.idVendor = cpu_to_le16(EEM_VENDOR_NUM);
+		device_desc.idProduct = cpu_to_le16(EEM_PRODUCT_NUM);
+	} else if (can_support_ecm(cdev->gadget)) {
 		/* ECM */
 		eth_config_driver.label = "CDC Ethernet (ECM)";
 	} else {
@@ -294,11 +334,12 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 		 * but if the controller isn't recognized at all then
 		 * that assumption is a bit more likely to be wrong.
 		 */
-		WARNING(cdev, "controller '%s' not recognized; trying %s\n",
+		dev_warn(&gadget->dev,
+				"controller '%s' not recognized; trying %s\n",
 				gadget->name,
 				eth_config_driver.label);
 		device_desc.bcdDevice =
-			__constant_cpu_to_le16(0x0300 | 0x0099);
+			cpu_to_le16(0x0300 | 0x0099);
 	}
 
 
@@ -333,7 +374,8 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail;
 
-	INFO(cdev, "%s, version: " DRIVER_VERSION "\n", DRIVER_DESC);
+	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
+			DRIVER_DESC);
 
 	return 0;
 
