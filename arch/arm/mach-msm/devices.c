@@ -249,7 +249,7 @@ struct platform_device msm_device_nand = {
 static struct resource resources_hsusb[] = {
 	{
 		.start	= MSM_HSUSB_PHYS,
-		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE,
+		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{

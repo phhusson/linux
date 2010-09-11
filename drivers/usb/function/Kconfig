@@ -8,15 +8,9 @@ config USB_FUNCTION
 	   some flexibility in the framework for smaller and simpler
 	   function drivers that can be combined into a composite driver.
 
-choice
-	prompt "USB Peripheral Controller"
-	depends on USB_FUNCTION
-	
 config USB_FUNCTION_MSM_HSUSB
 	boolean "MSM7K Highspeed USB Peripheral Controller"
 	depends on ARCH_MSM
-
-endchoice
 
 config USB_FUNCTION_NULL
 	boolean "Null Function -- eats packets"
