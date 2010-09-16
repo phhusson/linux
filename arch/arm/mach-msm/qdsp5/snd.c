@@ -298,34 +298,10 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
-		switch(__machine_arch_type) {
-			case MACH_TYPE_HTCTOPAZ:
-			case MACH_TYPE_HTCRHODIUM:
-                            /*
-				pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0x11\n", current->comm, vol.device);
-				vol.device = 0x11;
-                            */
-                                if( ( snd_state & (SND_STATE_INCALL|SND_STATE_PLAYBACK) ) && call_vol != vol.volume )
-                                {
-                                    call_vol = vol.volume;
-                                }
-                                msm_setup_audio( );
-				break;
-			case MACH_TYPE_HTCRAPHAEL:
-			case MACH_TYPE_HTCDIAMOND_CDMA:
-			case MACH_TYPE_HTCDIAMOND:
-			case MACH_TYPE_HTCBLACKSTONE:
-			case MACH_TYPE_HTCRAPHAEL_CDMA:
-			case MACH_TYPE_HTCRAPHAEL_CDMA500:
-				pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0xd\n", current->comm, vol.device);
-				vol.device = 0xd;
-				break;
-			default:
-				printk(KERN_ERR "Unsupported device for snd_set_device driver\n");
-				break;
+		if( ( snd_state & (SND_STATE_INCALL|SND_STATE_PLAYBACK) ) && call_vol != vol.volume ){
+			call_vol = vol.volume;
 		}
-#endif
+		msm_setup_audio( );
 		if(vol.device==1)
                 {
 			speaker_vol(vol.volume);
