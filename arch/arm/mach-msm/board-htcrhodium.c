@@ -123,7 +123,7 @@ static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
 	.rx_to_inject = 0x32,
 };
 #endif
-
+/*
 static struct msm_gpio_config ulpi_on_gpio_table[] = {
 	DEX_GPIO_CFG(0x6f, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
 	DEX_GPIO_CFG(0x70, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
@@ -151,6 +151,35 @@ static struct msm_gpio_config ulpi_off_gpio_table[] = {
 	DEX_GPIO_CFG(0x78, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
 	DEX_GPIO_CFG(0x79, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
 };
+*/
+
+static struct msm_gpio_config ulpi_on_gpio_table[] = {
+	DEX_GPIO_CFG(0x6f, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x70, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x71, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x72, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x73, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x74, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x75, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x76, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x77, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x78, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x79, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0),
+};
+
+static struct msm_gpio_config ulpi_off_gpio_table[] = {
+	DEX_GPIO_CFG(0x6f, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x70, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x71, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x72, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x73, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x74, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x75, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x76, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x77, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x78, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA, 0),
+	DEX_GPIO_CFG(0x79, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_2MA, 0),
+};
 
 static int usb_phy_init_seq_rhod[] = {
         0x40, 0x31, /* Leave this pair out for USB Host Mode */
@@ -162,37 +191,49 @@ static int usb_phy_init_seq_rhod[] = {
 static void usb_phy_shutdown(void)
 {
 	printk("%s: %s\n", __FILE__, __func__);
-	gpio_set_value(0x64, 1); 
-	gpio_set_value(0x64, 0);
+	gpio_set_value(RHODIUM_USBPHY_RST, 1); 
+	gpio_set_value(RHODIUM_USBPHY_RST, 0);
 }
 static void usb_phy_reset(void)
 {
 	printk("%s: %s\n", __FILE__, __func__);
 	usb_phy_shutdown();
-	//gpio_set_value(0x54, 1);
-	//gpio_set_value(0x3f, 0);	
-	//gpio_set_value(0x69, 1);
-	gpio_set_value(0x64, 0); 
+	gpio_set_value(RHODIUM_USBPHY_RST, 0); 
 	mdelay(3);
-	gpio_set_value(0x64, 1);
+	gpio_set_value(RHODIUM_USBPHY_RST, 1);
 	mdelay(3);
 	config_gpio_table(ulpi_on_gpio_table, ARRAY_SIZE(ulpi_on_gpio_table));
 }
 
-static void rhod_usb_hw_reset(int reset) {
-	printk("Rhodium: Reset usb\n");
+static void usb_hw_reset(bool enable) {
+	printk("%s: %s what to do?. FIXME !!!\n", __FILE__, __func__);
 }
  
 static void usb_connected(int on) {
 	printk("Rhodium: Connected usb == %x\n", on);
-	if (!on) config_gpio_table(ulpi_off_gpio_table, ARRAY_SIZE(ulpi_off_gpio_table));
+	
+	switch (on) {
+	case 2: /* ac power? */
+
+	break;
+	case 1:	/* usb plugged in */
+		//notify_usb_connected(1);
+	break;
+	case 0:
+		notify_usb_connected(0);
+		config_gpio_table(ulpi_off_gpio_table, ARRAY_SIZE(ulpi_off_gpio_table));
+	break;
+	default:
+		printk(KERN_WARNING "%s: FIXME! value for ON? %u ?\n", __func__, on);
+    	}
+	
 }
 
 static struct msm_hsusb_platform_data msm_hsusb_pdata = {
-    .phy_init_seq       = usb_phy_init_seq_rhod,
-    .phy_reset     	= usb_phy_reset,
-//    .hw_reset       	= usb_phy_shutdown,
-    .usb_connected      = usb_connected,
+	.phy_init_seq	= usb_phy_init_seq_rhod,
+	.phy_reset     	= usb_phy_reset,
+	.hw_reset	= usb_hw_reset,
+	.usb_connected	= usb_connected,
 };
 /***************************************************************
  * Android stuff
@@ -537,6 +578,7 @@ static smem_batt_t msm_battery_pdata = {
 	.gpio_battery_detect = RHODIUM_BAT_IRQ,
 	.gpio_charger_enable = RHODIUM_CHARGE_EN_N,
 	.gpio_charger_current_select = RHODIUM_USB_AC_PWR,
+	/*.gpio_ac_detect = RHODIUM_AC_DETECT,*/
 	.smem_offset = 0xfc140,
 	.smem_field_size = 4,
 };
@@ -576,10 +618,9 @@ static void __init halibut_init(void)
 	 * For now we just declare that VBUS is present at boot and USB
 	 * copes, but this is not ideal.
 	 */
-	//msm_hsusb_set_vbus_state(1);
+	msm_hsusb_set_vbus_state(1);
 
-	msm_hsusb_set_vbus_state(!!readl(MSM_SHARED_RAM_BASE+0xfc00c));
-
+	//msm_hsusb_set_vbus_state(!!readl(MSM_SHARED_RAM_BASE+0xfc00c));
 	msm_init_pmic_vibrator();
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {
@@ -629,6 +670,15 @@ static void htcrhodium_device_specific_fixes(void)
 	printk("AXIGE = 0x%8.8x\n", readl(mmio));
 	iounmap(mmio);
 */
+
+	void __iomem	*mmio;		
+	mmio = ioremap(0xAA2101AC, 0x04);
+	printk("Current 0x%8.8x | 0x%8.8x \n",0xAA2101AC, readl(mmio));
+	writel( 0x01, mmio );
+	mdelay(20);
+	printk("Enabled 0x%8.8x | 0x%8.8x \n",0xAA2101AC, readl(mmio));
+	iounmap(mmio);
+
 }
 
 MACHINE_START(HTCRHODIUM, "HTC Rhodium cellphone")

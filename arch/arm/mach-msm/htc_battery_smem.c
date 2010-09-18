@@ -100,6 +100,7 @@ static struct htc_battery_info htc_batt_info;
 static unsigned int cache_time = 1000;
 
 static int htc_battery_initial = 0;
+static bool not_yet_started = true;
 
 // simple maf filter stuff
 #define BATT_MAF_SIZE 8
@@ -302,6 +303,7 @@ static struct power_supply htc_power_supplies[] = {
 	},
 };
 
+static int g_usb_online;
 static int fake_charger=0;
 module_param_named(fake, fake_charger, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -352,7 +354,7 @@ static int init_batt_gpio(void)
 		goto gpio_failed;
 	if (gpio_request(htc_batt_info.resources->gpio_charger_current_select, "charge_current") < 0)
 		goto gpio_failed;
-	if (machine_is_htckovsky())
+	if (machine_is_htckovsky() /*|| machine_is_htcrhodium()*/ )
 		if (gpio_request(htc_batt_info.resources->gpio_ac_detect, "ac_detect") < 0)
 			goto gpio_failed;
 
@@ -439,20 +441,24 @@ int htc_cable_status_update(int status)
 	int rc = 0;
 	unsigned source;
 	unsigned last_source;
+	unsigned vbus_status;
+	vbus_status = readl(MSM_SHARED_RAM_BASE+0xfc00c);
 
 	if (!htc_battery_initial)
 		return 0;
-
+	
 	mutex_lock(&htc_batt_info.lock);
-	if(readl(MSM_SHARED_RAM_BASE+0xfc00c))
-		status=CHARGER_AC;	/* vbus present, says AC to have full speed charging. (perhaps breaks kovsky ?) */
-	else
-		status=CHARGER_BATTERY;	/* no vbus present */
+	if(vbus_status && g_usb_online)
+		status=CHARGER_USB;	/* vbus present, usb connection online (perhaps breaks kovsky ?) */
+	else if (vbus_status && !g_usb_online)
+		status=CHARGER_AC;	/* vbus present, no usb */
+	else {
+		g_usb_online = 0;
+		status=CHARGER_BATTERY;
+	}
 
-	if(fake_charger)
-		status=CHARGER_USB;
-
-	last_source = htc_batt_info.rep.charging_source;
+	last_source = status;
+//	printk(KERN_INFO "battlog: AC: current_charger=%d / last_charger_source=%d", status, last_source );
 
 	switch(status) {
 	case CHARGER_BATTERY:
@@ -479,7 +485,7 @@ int htc_cable_status_update(int status)
 	mutex_unlock(&htc_batt_info.lock);
 
 	htc_battery_set_charging(status);
-	//msm_hsusb_set_vbus_state((source==CHARGER_USB) || (source==CHARGER_AC));
+	msm_hsusb_set_vbus_state((source==CHARGER_USB) || (source==CHARGER_AC));
 
 	if (  source == CHARGER_USB || source==CHARGER_AC ) {
 		wake_lock(&vbus_wake_lock);
@@ -503,6 +509,25 @@ int htc_cable_status_update(int status)
 	return rc;
 }
 
+/* A9 reports USB charging when helf AC cable in and China AC charger. */
+/* Work arround: notify userspace AC charging first,
+and notify USB charging again when receiving usb connected notification from usb driver. */
+void notify_usb_connected(int online)
+{
+	g_usb_online = online;
+	if (not_yet_started) return;
+	
+	mutex_lock(&htc_batt_info.lock);
+	if (online && htc_batt_info.rep.charging_source == CHARGER_AC) {
+		mutex_unlock(&htc_batt_info.lock);
+		htc_cable_status_update(CHARGER_USB);
+		mutex_lock(&htc_batt_info.lock);
+	} else if (online) {
+		BATT("warning: usb connected but charging source=%d\n", htc_batt_info.rep.charging_source);
+	}
+	mutex_unlock(&htc_batt_info.lock);
+}
+
 static void htc_bat_work(struct work_struct *work) {
 	int rc = 0;
 	int ac_detect = 1;
@@ -519,9 +544,9 @@ static void htc_bat_work(struct work_struct *work) {
 		rc = battery_charging_ctrl(DISABLE);
 		BATT("charging disable rc=%d\n", rc);
 	}
-	msm_hsusb_set_vbus_state(!!readl(MSM_SHARED_RAM_BASE+ 0xfc00c));
 }
 
+#if 0
 static short battery_table_4[] = {
 	0,      0,
 	0xe11,	0,
@@ -539,6 +564,7 @@ static short battery_table_4[] = {
 	0x1000, 100,
 	0,	0
 };
+#endif
 
 /* 2 byte alligned */
 struct htc_batt_info_u16 {
@@ -1295,15 +1321,16 @@ static int htc_battery_probe(struct platform_device *pdev)
 
 	htc_batt_info.update_time = jiffies;
 	kernel_thread(htc_battery_thread, NULL, CLONE_KERNEL);
-	if (machine_is_htckovsky()) {
+	if (machine_is_htckovsky() /*|| machine_is_htcrhodium()*/) {
 		rc = request_irq(gpio_to_irq(htc_batt_info.resources->gpio_ac_detect),
 				htc_bat_gpio_isr,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"htc_ac_detect", &htc_batt_info);
         if (rc)
-            printk(KERN_ERR "IRQ-request rc=%d\n", rc);
+	    printk(KERN_ERR "IRQ-request rc=%d\n", rc);
     }
 
+	not_yet_started = false;
 	return 0;
 }
 

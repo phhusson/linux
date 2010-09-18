@@ -18,6 +18,7 @@
 
 #define RHODIUM_BAT_IRQ			28  // GPIO IRQ
 #define RHODIUM_USB_AC_PWR		32
+#define RHODIUM_AC_DETECT		82  // ????
 #define RHODIUM_CHARGE_EN_N		44
 #define RHODIUM_KPD_IRQ			27  //Keyboard IRQ
 #define RHODIUM_KB_SLIDER_IRQ		37  //Keyboard Slider IRQ //Currently Unknown, using stylus detect GPIO right now (37).
