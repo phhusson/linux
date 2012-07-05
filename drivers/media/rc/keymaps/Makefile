@@ -103,6 +103,7 @@ obj-$(CONFIG_RC_MAP) += \
 			rc-purpletv.o \
 			rc-pv951.o \
 			rc-rc6-mce.o \
+			rc-rc6-freebox.o \
 			rc-real-audio-220-32-keys.o \
 			rc-reddo.o \
 			rc-snapstream-firefly.o \

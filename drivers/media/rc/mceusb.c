@@ -182,6 +182,7 @@ enum mceusb_model_type {
 	HAUPPAUGE_CX_HYBRID_TV,
 	EVROMEDIA_FULL_HYBRID_FULLHD,
 	ASTROMETA_T2HYBRID,
+	MCE_FREEBOX,
 };
 
 struct mceusb_model {
@@ -276,7 +277,12 @@ static const struct mceusb_model mceusb_model[] = {
 		.name = "Astrometa T2Hybrid",
 		.no_tx = 1,
 		.rc_map = RC_MAP_ASTROMETA_T2HYBRID,
-	}
+	},
+	[MCE_FREEBOX] = {
+		.mce_gen2 = 1,
+		.no_tx = 1,
+		.rc_map = "rc-rc6-freebox",
+	},
 };
 
 static const struct usb_device_id mceusb_dev_table[] = {
@@ -375,7 +381,8 @@ static const struct usb_device_id mceusb_dev_table[] = {
 	/* Formosa Industrial Computing AIM IR605/A */
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03c) },
 	/* Formosa Industrial Computing */
-	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03e) },
+	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03e),
+	  .driver_info = MCE_FREEBOX },
 	/* Formosa Industrial Computing */
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe042) },
 	/* Fintek eHome Infrared Transceiver (HP branded) */
