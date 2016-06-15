@@ -10,6 +10,10 @@
 #include <linux/mii.h>
 #include <linux/crc32.h>
 
+#ifdef CONFIG_FBXSERIAL
+# include <linux/fbxserial.h>
+#endif
+
 #include "atl1c.h"
 
 /*
@@ -74,6 +78,14 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 	u32 twsi_ctrl_data;
 	u16 phy_data;
 	bool raise_vol = false;
+
+#ifdef CONFIG_FBXSERIAL
+	const void *addr = fbxserialinfo_get_mac_addr(0);
+	if (addr) {
+		memcpy(hw->perm_mac_addr, fbxserialinfo_get_mac_addr(0), 6);
+		return 0;
+	}
+#endif
 
 	/* MAC-address from BIOS is the 1st priority */
 	if (atl1c_read_current_addr(hw, hw->perm_mac_addr))
