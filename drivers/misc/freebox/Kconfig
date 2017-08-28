@@ -1,0 +1,5 @@
+config NET_RTL8367C_SPI
+	tristate "Realtek RTL8367C ethernet switch with SPI management"
+	select SPI
+	help
+	  This enables support for the Realtek RTL8367C ethernet switch.
