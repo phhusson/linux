@@ -53,6 +53,11 @@ fbxserialinfo_read(const void *data, struct fbx_serial *out)
 {
 	uint32_t sum;
 
+	if (!data) {
+		printk(KERN_NOTICE PFX "no serial data\n");
+		goto out_default;
+	}
+
 	/*
 	 * get partial serial data from flash/whatever.
 	 */
