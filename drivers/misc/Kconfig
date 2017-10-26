@@ -424,6 +424,11 @@ config PCH_PHUB
 	  To compile this driver as a module, choose M here: the module will
 	  be called pch_phub.
 
+config FBXSERIAL_OF
+	bool "read fbxserial through DT chosen node"
+	depends on OF
+	select ARCH_HAS_FBXSERIAL
+
 config LATTICE_ECP3_CONFIG
 	tristate "Lattice ECP3 FPGA bitstream configuration via SPI"
 	depends on SPI && SYSFS
