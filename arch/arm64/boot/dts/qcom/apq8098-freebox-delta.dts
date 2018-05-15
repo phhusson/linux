@@ -175,7 +175,7 @@
 
 	spidev@3 {
 		/* XMOS */
-		compatible = "spidev";
+		compatible = "freebox,spi-xmos";
 		spi-max-frequency = <1200000>;
 		reg = <3>;
 	};
