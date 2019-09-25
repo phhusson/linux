@@ -2400,6 +2400,10 @@ config SENSORS_INTEL_M10_BMC_HWMON
 	  sensors monitor various telemetry data of different components on the
 	  card, e.g. board temperature, FPGA core temperature/voltage/current.
 
+config SENSORS_LD6710_FBX
+	tristate "LD6710 hardware monitoring driver (as seen on Freebox hardware)"
+	depends on I2C
+
 if ACPI
 
 comment "ACPI drivers"
