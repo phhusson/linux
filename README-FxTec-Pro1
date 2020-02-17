@@ -1,3 +1,5 @@
+fastboot erase dtbo
+
 make -j4 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- && \
 (
     (gzip -9 -c < arch/arm64/boot/Image ;cat ./arch/arm64/boot/dts/qcom/msm8998-fxtec-pro1.dtb ) > k; \
