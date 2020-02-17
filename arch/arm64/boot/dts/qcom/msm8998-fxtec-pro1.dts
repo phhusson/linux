@@ -54,13 +54,13 @@ An empty /memory node is needed because boot-loader can only fill an empty node,
              leds {
                  compatible = "gpio-leds";
                  keyboard-backlight {
-                     gpios = <&tlmm 0x10 GPIO_ACTIVE_LOW>;
+                     gpios = <&tlmm 0x10 GPIO_ACTIVE_HIGH>;
                      linux,default-trigger = "default-on";
                      function = "power";
                      default-state = "off";
                  };
                  caps-led {
-                     gpios = <&tlmm 0x1a GPIO_ACTIVE_LOW>;
+                     gpios = <&tlmm 0x1a GPIO_ACTIVE_HIGH>;
                      linux,default-trigger = "default-on";
                      function = "power";
                      default-state = "off";
