@@ -1,0 +1,11 @@
+make -j4 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- && \
+(
+    (gzip -9 -c < arch/arm64/boot/Image ;cat ./arch/arm64/boot/dts/qcom/msm8998-fxtec-pro1.dtb ) > k; \
+    python /build2/pro1-hal/system/core/mkbootimg/mkbootimg \
+        --header_version 1 --pagesize 4096 --id --os_version 10.0 --os_patch_level 2020-01-01 \
+        --kernel k --ramdisk ../halium/initrd.img --cmdline 'androidboot.hardware=qcom earlycon' -o boot.img ;\
+     /build2/AOSP-10.0-new/out/host/linux-x86/bin/avbtool \
+        add_hash_footer --image boot.img \
+        --partition_size 0x04000000 --partition_name boot; \
+     sudo fastboot flash boot boot.img; sudo fastboot reboot
+)
