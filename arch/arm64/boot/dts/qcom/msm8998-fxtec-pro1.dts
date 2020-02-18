@@ -415,6 +415,14 @@ An empty /memory node is needed because boot-loader can only fill an empty node,
     // - irq &tlmm 50 0x2008
     pinctrl-names = "default";
     pinctrl-0 = <&blsp1_i2c6_active>;
+    aw9523b: aw9523b@58 {
+        #gpio-cells = <2>;
+        compatible = "awinic,aw9523b";
+        reg = <0x58>;
+        reset-gpios = <&tlmm 51 GPIO_ACTIVE_LOW>;
+        interrupt-parent = <&tlmm>;
+        interrupts = <50 IRQ_TYPE_LEVEL_HIGH>;
+    };
 };
 
 &blsp2_i2c0 {
