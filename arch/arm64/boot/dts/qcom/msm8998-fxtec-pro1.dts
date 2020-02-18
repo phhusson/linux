@@ -405,3 +405,72 @@ An empty /memory node is needed because boot-loader can only fill an empty node,
 	vdda-phy-supply = <&vreg_l1a_0p875>;
 	vdda-pll-supply = <&vreg_l2a_1p2>;
 };
+
+&blsp1_i2c6 {
+    status = "okay";
+    //NFC @ 0x28
+    //keyboard over AW9523b @ 0x58
+    // - reset &tlmm 51
+    // - caps lock &tlmm 26 0
+    // - irq &tlmm 50 0x2008
+    pinctrl-names = "default";
+    pinctrl-0 = <&blsp1_i2c6_active>;
+};
+
+&blsp2_i2c0 {
+    status = "okay";
+    pinctrl-names = "default";
+    pinctrl-0 = <&blsp2_i2c0_active>;
+
+    //Touchscreen
+	touchscreen@14 {
+		compatible = "goodix,gt928"; // actually gt9286
+		reg = <0x14>;
+		//reset-gpios = <&tlmm 89 GPIO_ACTIVE_HIGH>, <&tlmm 81 GPIO_ACTIVE_HIGH>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <125 IRQ_TYPE_LEVEL_HIGH>;
+		irq-gpios = <&tlmm 125 GPIO_ACTIVE_HIGH>;
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1440>;
+        VDDIO-supply = <&vreg_l28_3p0>;
+	};
+};
+
+&tlmm {
+    blsp1_i2c6 {
+        blsp1_i2c6_active: blsp1_i2c6_active {
+            config {
+                pins = "gpio43", "gpio44";
+                bias-disable;           /* NO pull */
+                drive-strength = <2>;  /* 16 mA */
+            };
+            mux {
+                pins = "gpio43", "gpio44";
+                function = "blsp_i2c6";
+            };
+        };
+    };
+    blsp2_i2c0 {
+        blsp2_i2c0_active: blsp2_i2c0_active {
+            config {
+                pins = "gpio55", "gpio56";
+                bias-disable;           /* NO pull */
+                drive-strength = <2>;  /* 16 mA */
+            };
+            mux {
+                pins = "gpio55", "gpio56";
+                function = "blsp_i2c7";
+            };
+        };
+    };
+};
+
+&pm8998_pon {
+	resin {
+		compatible = "qcom,pm8941-resin";
+		interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+		debounce = <15625>;
+		bias-pull-up;
+		linux,code = <KEY_VOLUMEDOWN>;
+	};
+};
