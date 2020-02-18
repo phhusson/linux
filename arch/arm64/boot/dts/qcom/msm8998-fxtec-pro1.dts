@@ -7,6 +7,7 @@
 #include "pm8998.dtsi"
 #include "pmi8998.dtsi"
 #include "pm8005.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM 8998 V2 SKUK T5";
@@ -66,6 +67,45 @@ An empty /memory node is needed because boot-loader can only fill an empty node,
                      default-state = "off";
                  };
              };
+
+    keyboard {
+        compatible = "gpio-matrix-keypad";
+
+        col-scan-delay-us = <1000>;
+        debounce-delay-ms = <10>;
+        wakeup-source;
+
+        row-gpios = <&aw9523b  0 0
+                     &aw9523b  1 0
+                     &aw9523b  2 0>;
+                     /*&aw9523b  2 0
+                     &aw9523b  3 0
+                     &aw9523b  4 0
+                     &aw9523b  5 0
+                     &aw9523b  6 0
+                     &aw9523b  7 0>;*/
+        col-gpios = <&aw9523b  8 0
+                     &aw9523b  9 0
+                     &aw9523b 10 0>;
+                     /*&aw9523b 11 0
+                     &aw9523b 12 0
+                     &aw9523b 13 0
+                     &aw9523b 14 0
+                     &aw9523b 15 0>;*/
+        gpio-activelow;
+
+        linux,keymap = <
+            MATRIX_KEY(0, 0, KEY_F1)    /* S2 */
+            MATRIX_KEY(0, 1, KEY_F2)    /* S3 */
+            MATRIX_KEY(0, 2, KEY_F3)    /* S4 */
+            MATRIX_KEY(1, 0, KEY_F4)    /* S5 */
+            MATRIX_KEY(1, 1, KEY_F5)    /* S6 */
+            MATRIX_KEY(1, 2, KEY_F6)    /* S7 */
+            MATRIX_KEY(2, 0, KEY_F7)    /* S8 */
+            MATRIX_KEY(2, 1, KEY_F8)    /* S8 */
+            MATRIX_KEY(2, 2, KEY_F9)    /* S8 */
+>;
+};
 
 };
 
