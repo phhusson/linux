@@ -1,0 +1,280 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved. */
+
+/dts-v1/;
+
+#include "apq8098-freebox.dtsi"
+
+/ {
+	model = "Freebox Delta";
+	compatible = "freebox,fbx7hd-batfish", "qcom,msm8998";
+	qcom,board-id = <5 2>;
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&force_bank0>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			label = "Factory Reset Button";
+			linux,code = <KEY_SETUP>;
+			gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	ir: ir-receiver {
+		compatible = "gpio-ir-receiver";
+		gpios = <&tlmm 120 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ir_int>;
+		linux,rc-map-name = "rc-rc6-freebox";
+	};
+
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&tdp158_out>;
+			};
+		};
+	};
+
+	hdmi-bridge {
+		compatible = "ti,tdp158";
+		enable-gpios = <&tlmm 17 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&hdmi_en>;
+		pinctrl-names = "default";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tdp158_in: endpoint {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tdp158_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
+				};
+			};
+		};
+	};
+};
+
+&blsp1_i2c4 {
+	status = "okay";
+
+	clock-frequency = <100000>;
+
+	lm75@48 {
+		compatible = "national,lm75";
+		reg = <0x48>;
+	};
+
+	// tas5766@4c
+	// tas5766@4d
+	// tas5766@4e
+	// at24_audio@53
+	// at24_carrier@57
+};
+
+&blsp1_i2c5 {
+	status = "okay";
+
+	clock-frequency = <100000>;
+
+	usb-hub@44 {
+		compatible = "ti,tusb8020";
+		reg = <0x44>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_hub_rst>;
+		reset-gpios = <&tlmm 24 GPIO_ACTIVE_LOW>;
+	};
+
+	// usbmux@47
+	// si2157@60
+	// si2168@64
+
+	ld6710-fbx@68 {
+		compatible = "leadtrend,ld6710-fbx";
+		reg = <0x68>;
+	};
+};
+
+&blsp1_i2c6 {
+	//status = "okay";
+
+	clock-frequency = <100000>;
+
+	exp1: gpio@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		reset-gpios = <&tlmm 96 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <42 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&top_exp_rst>;
+	};
+
+	// at24_top@53
+};
+
+&blsp2_i2c1 {
+	status = "okay";
+
+	wm8804@3b {
+		compatible = "wlf,wm8804";
+		reg = <0x3b>;
+		wlf,reset-gpio = <&tlmm 100 GPIO_ACTIVE_HIGH>;
+		wlf,irq-gpio = <&tlmm 110 GPIO_ACTIVE_LOW>;
+	};
+
+	sil9437@31 {
+		compatible = "sil,sil9437";
+		reg = <0x31>;
+		sil,reset-gpio = <&tlmm 12 GPIO_ACTIVE_LOW>;
+		sil,irq-gpio = <&tlmm 118 GPIO_ACTIVE_LOW>;
+		sil,irq-open-drain;
+		sil,irq-active-low;
+	};
+};
+
+&blsp1_spi1 {
+	status = "okay";
+
+	pinctrl-0 = <&blsp1_spi1_default &blsp1_spi_b_default>;
+	cs-gpios = <&tlmm 2 GPIO_ACTIVE_HIGH>, <0>, <0>,
+		<&tlmm 23 GPIO_ACTIVE_HIGH>;
+
+	spidev@0 {
+		/* PSOC for LED & touch control */
+		compatible = "freebox,fbx7hd-top-psoc";
+		spi-max-frequency = <1200000>;
+		irq-gpio = <&tlmm 122 GPIO_ACTIVE_LOW>;
+		reset-gpio = <&tlmm 97 GPIO_ACTIVE_LOW>;
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&top_psoc_rst &top_psoc_irq>;
+	};
+
+	spidev@3 {
+		/* XMOS */
+		compatible = "spidev";
+		spi-max-frequency = <1200000>;
+		reg = <3>;
+	};
+};
+
+&blsp2_spi3 {
+	status = "okay";
+
+	switch@0 {
+		compatible = "realtek,rtl8367c-spi";
+		reg = <0>;
+		reset-gpios = <&tlmm 30 GPIO_ACTIVE_LOW>;
+		spi-max-frequency = <5000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&switch_rst>;
+	};
+};
+
+&hdmi_out {
+	remote-endpoint = <&tdp158_in>;
+};
+
+&tlmm {
+	force_bank0: force_bank0 {
+		config {
+			pins = "gpio18";
+			bias-disable;
+		};
+	};
+
+	force_test_mode: force_test_mode {
+		config {
+			pins = "gpio29";
+			bias-pull-down;
+		};
+	};
+
+	hdmi_en: hdmi_en {
+		config {
+			pins = "gpio17";
+			bias-pull-down;
+		};
+	};
+
+	hdmi_fault: hdmi_fault {
+		config {
+			pins = "gpio133";
+			bias-pull-up;
+		};
+	};
+
+	ir_int: ir_int {
+		config {
+			pins = "gpio120";
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+	};
+
+	spdif_src_sel: spdif_src_sel {
+		config {
+			pins = "gpio8";
+			bias-pull-down;
+		};
+	};
+
+	switch_rst: switch_rst {
+		config {
+			pins = "gpio30";
+			bias-pull-down;
+		};
+	};
+
+	top_exp_rst: top_exp_rst {
+		config {
+			pins = "gpio96";
+			bias-pull-down;
+		};
+	};
+
+	top_psoc_irq: top_psoc_irq {
+		config {
+			pins = "gpio122";
+			bias-pull-down;
+		};
+	};
+
+	top_psoc_rst: top_psoc_rst {
+		config {
+			pins = "gpio97";
+			bias-pull-down;
+		};
+	};
+
+	usb_hub_rst: usb_hub_rst {
+		config {
+			pins = "gpio24";
+			bias-pull-down;
+		};
+	};
+};
