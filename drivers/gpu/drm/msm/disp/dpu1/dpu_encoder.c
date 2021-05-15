@@ -58,8 +58,6 @@
 
 #define IDLE_SHORT_TIMEOUT	1
 
-#define MAX_HDISPLAY_SPLIT 1080
-
 /* timeout in frames waiting for frame done */
 #define DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES 5
 
@@ -550,10 +548,12 @@ static struct msm_display_topology dpu_encoder_get_topology(
 	 */
 	if (intf_count == 2)
 		topology.num_lm = 2;
-	else if (!dpu_kms->catalog->caps->has_3d_merge)
-		topology.num_lm = 1;
+	else if (dpu_kms->catalog->caps->has_3d_merge &&
+		 dpu_kms->catalog->mixer_count > 0 &&
+		 mode->hdisplay > dpu_kms->catalog->mixer[0].sblk->maxwidth)
+		topology.num_lm = 2;
 	else
-		topology.num_lm = (mode->hdisplay > MAX_HDISPLAY_SPLIT) ? 2 : 1;
+		topology.num_lm = 1;
 
 	if (crtc_state->ctm)
 		topology.num_dspp = topology.num_lm;
