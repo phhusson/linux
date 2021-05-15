@@ -133,6 +133,7 @@ msm-$(CONFIG_DRM_MSM_DP)+= dp/dp_aux.o \
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 
+msm-$(CONFIG_DRM_MSM_HDMI_CEC) += hdmi/hdmi_cec.o
 msm-$(CONFIG_DRM_MSM_HDMI_HDCP) += hdmi/hdmi_hdcp.o
 
 msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \

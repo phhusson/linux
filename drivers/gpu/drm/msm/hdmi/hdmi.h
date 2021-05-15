@@ -29,6 +29,7 @@ struct hdmi_audio {
 };
 
 struct hdmi_hdcp_ctrl;
+struct cec_adapter;
 
 struct hdmi {
 	struct drm_device *dev;
@@ -73,6 +74,7 @@ struct hdmi {
 	struct workqueue_struct *workq;
 
 	struct hdmi_hdcp_ctrl *hdcp_ctrl;
+	struct cec_adapter *cec_adap;
 
 	/*
 	* spinlock to protect registers shared by different execution
@@ -258,6 +260,22 @@ static inline void msm_hdmi_hdcp_destroy(struct hdmi *hdmi) {}
 static inline void msm_hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
 static inline void msm_hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
 static inline void msm_hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
+#endif
+
+/*
+ * cec
+ */
+#ifdef CONFIG_DRM_MSM_HDMI_CEC
+int msm_hdmi_cec_init(struct hdmi *hdmi);
+void msm_hdmi_cec_exit(struct hdmi *hdmi);
+void msm_hdmi_cec_irq(struct hdmi *hdmi);
+#else
+static inline int msm_hdmi_cec_init(struct hdmi *hdmi)
+{
+	return -ENXIO;
+}
+static inline void msm_hdmi_cec_exit(struct hdmi *hdmi) {}
+static inline void msm_hdmi_cec_irq(struct hdmi *hdmi) {}
 #endif
 
 #endif /* __HDMI_CONNECTOR_H__ */

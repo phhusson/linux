@@ -168,3 +168,11 @@ config DRM_MSM_HDMI_HDCP
 	default y
 	help
 	  Choose this option to enable HDCP state machine
+
+config DRM_MSM_HDMI_CEC
+	bool "Enable HDMI CEC support in MSM DRM driver"
+	depends on DRM_MSM && DRM_MSM_HDMI
+	select CEC_CORE
+	default y
+	help
+	  Choose this option to enable CEC support

@@ -13,6 +13,8 @@
 #include <drm/drm_bridge_connector.h>
 #include <drm/drm_of.h>
 
+#include <media/cec.h>
+
 #include <sound/hdmi-codec.h>
 #include "hdmi.h"
 
@@ -55,6 +57,9 @@ static irqreturn_t msm_hdmi_irq(int irq, void *dev_id)
 	if (hdmi->hdcp_ctrl)
 		msm_hdmi_hdcp_irq(hdmi->hdcp_ctrl);
 
+	/* Process CEC: */
+	msm_hdmi_cec_irq(hdmi);
+
 	/* TODO audio.. */
 
 	return IRQ_HANDLED;
@@ -68,6 +73,8 @@ static void msm_hdmi_destroy(struct hdmi *hdmi)
 	 */
 	if (hdmi->workq)
 		destroy_workqueue(hdmi->workq);
+
+	msm_hdmi_cec_exit(hdmi);
 	msm_hdmi_hdcp_destroy(hdmi);
 
 	if (hdmi->i2c)
@@ -141,6 +148,8 @@ static int msm_hdmi_init(struct hdmi *hdmi)
 		hdmi->hdcp_ctrl = NULL;
 	}
 
+	msm_hdmi_cec_init(hdmi);
+
 	return 0;
 
 fail:
@@ -191,6 +200,12 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 	}
 
 	drm_connector_attach_encoder(hdmi->connector, hdmi->encoder);
+
+	if (hdmi->cec_adap) {
+		struct cec_connector_info conn_info;
+		cec_fill_conn_info_from_drm(&conn_info, hdmi->connector);
+		cec_s_conn_info(hdmi->cec_adap, &conn_info);
+	}
 
 	ret = devm_request_irq(dev->dev, hdmi->irq,
 			msm_hdmi_irq, IRQF_TRIGGER_HIGH,
