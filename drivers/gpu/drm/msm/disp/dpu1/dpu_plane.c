@@ -830,7 +830,14 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 	r_pipe->multirect_mode = DPU_SSPP_MULTIRECT_NONE;
 	r_pipe->sspp = NULL;
 
-	pstate->stage = DPU_STAGE_BASE + pstate->base.normalized_zpos;
+	if (pipe_hw_caps->type == SSPP_TYPE_CURSOR) {
+		/* enforce cursor sspp to use the last mixer stage */
+		pstate->stage = DPU_STAGE_BASE +
+			pdpu->catalog->caps->max_mixer_blendstages;
+	} else {
+		pstate->stage = DPU_STAGE_BASE + pstate->base.normalized_zpos;
+	}
+
 	if (pstate->stage > DPU_STAGE_BASE + pdpu->catalog->caps->max_mixer_blendstages) {
 		DPU_ERROR("> %d plane mixer stages assigned\n",
 			  pdpu->catalog->caps->max_mixer_blendstages);
@@ -1379,6 +1386,7 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 	struct msm_drm_private *priv = dev->dev_private;
 	struct dpu_kms *kms = to_dpu_kms(priv->kms);
 	struct dpu_hw_sspp *pipe_hw;
+	const uint64_t *format_modifiers;
 	uint32_t num_formats;
 	uint32_t supported_rotations;
 	int ret;
@@ -1393,10 +1401,14 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 	format_list = pipe_hw->cap->sblk->format_list;
 	num_formats = pipe_hw->cap->sblk->num_formats;
 
+	if (pipe_hw->cap->type == SSPP_TYPE_CURSOR)
+		format_modifiers = NULL;
+	else
+		format_modifiers = supported_format_modifiers;
 	pdpu = drmm_universal_plane_alloc(dev, struct dpu_plane, base,
 				0xff, &dpu_plane_funcs,
 				format_list, num_formats,
-				supported_format_modifiers, type, NULL);
+				format_modifiers, type, NULL);
 	if (IS_ERR(pdpu))
 		return ERR_CAST(pdpu);
 
@@ -1406,7 +1418,14 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 
 	pdpu->catalog = kms->catalog;
 
-	ret = drm_plane_create_zpos_property(plane, 0, 0, DPU_ZPOS_MAX);
+	if (pipe_hw->cap->type == SSPP_TYPE_CURSOR) {
+		/* cursor SSPP can only be used in the last mixer stage,
+		 * enforce it by maxing out the cursor plane zpos */
+		ret = drm_plane_create_zpos_immutable_property(plane, DPU_ZPOS_MAX);
+	} else {
+		ret = drm_plane_create_zpos_property(plane, 0, 0, DPU_ZPOS_MAX - 1);
+	}
+
 	if (ret)
 		DPU_ERROR("failed to install zpos property, rc = %d\n", ret);
 

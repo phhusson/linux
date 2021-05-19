@@ -743,13 +743,22 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 	for (i = 0; i < catalog->sspp_count; i++) {
 		enum drm_plane_type type;
 
-		if ((catalog->sspp[i].features & BIT(DPU_SSPP_CURSOR))
-			&& cursor_planes_idx < max_crtc_count)
-			type = DRM_PLANE_TYPE_CURSOR;
-		else if (primary_planes_idx < max_crtc_count)
+		if (catalog->sspp[i].features & BIT(DPU_SSPP_CURSOR)) {
+			if (cursor_planes_idx < max_crtc_count) {
+				type = DRM_PLANE_TYPE_CURSOR;
+			} else if (catalog->sspp[i].type == SSPP_TYPE_CURSOR) {
+				/* Cursor SSPP can only be used in the last
+				 * mixer stage, so it doesn't make sense to
+				 * assign two of those to the same CRTC */
+				continue;
+			} else {
+				type = DRM_PLANE_TYPE_OVERLAY;
+			}
+		} else if (primary_planes_idx < max_crtc_count) {
 			type = DRM_PLANE_TYPE_PRIMARY;
-		else
+		} else {
 			type = DRM_PLANE_TYPE_OVERLAY;
+		}
 
 		DPU_DEBUG("Create plane type %d with features %lx (cur %lx)\n",
 			  type, catalog->sspp[i].features,
