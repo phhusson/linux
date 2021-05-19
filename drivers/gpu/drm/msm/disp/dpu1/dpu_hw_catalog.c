@@ -271,6 +271,22 @@ static const u32 wb2_formats_rgb_yuv[] = {
 	DRM_FORMAT_NV12,
 };
 
+static const uint32_t cursor_formats[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ABGR4444,
+	DRM_FORMAT_RGBA4444,
+	DRM_FORMAT_BGRA4444,
+};
+
 /*************************************************************
  * SSPP sub blocks config
  *************************************************************/
@@ -329,6 +345,24 @@ static const u32 wb2_formats_rgb_yuv[] = {
 	.virt_format_list = plane_formats, \
 	.virt_num_formats = ARRAY_SIZE(plane_formats), \
 	}
+
+#define _CURSOR_SBLK(num) \
+	{ \
+	.maxdwnscale = SSPP_UNITY_SCALE, \
+	.maxupscale = SSPP_UNITY_SCALE, \
+	.smart_dma_priority = 0, \
+	.src_blk = {.name = STRCAT("sspp_src_", num), \
+		.id = DPU_SSPP_SRC, .base = 0x00, .len = 0x150,}, \
+	.format_list = cursor_formats, \
+	.num_formats = ARRAY_SIZE(cursor_formats), \
+	.virt_format_list = cursor_formats, \
+	.virt_num_formats = ARRAY_SIZE(cursor_formats), \
+	}
+
+static const struct dpu_sspp_sub_blks msm8998_cursor_sblk_0 =
+				_CURSOR_SBLK("12");
+static const struct dpu_sspp_sub_blks msm8998_cursor_sblk_1 =
+				_CURSOR_SBLK("13");
 
 static const struct dpu_rotation_cfg dpu_rot_sc7280_cfg_v2 = {
 	.rot_maxheight = 1088,
