@@ -1553,7 +1553,8 @@
 		};
 
 		adreno_smmu: iommu@5040000 {
-			compatible = "qcom,msm8998-smmu-v2", "qcom,smmu-v2";
+			compatible = "qcom,msm8998-smmu-v2", "qcom,smmu-v2",
+				     "qcom,adreno-smmu";
 			reg = <0x05040000 0x10000>;
 			clocks = <&gcc GCC_GPU_CFG_AHB_CLK>,
 				 <&gcc GCC_BIMC_GFX_CLK>,
