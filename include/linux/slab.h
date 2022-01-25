@@ -189,14 +189,6 @@ bool kmem_valid_obj(void *object);
 void kmem_dump_obj(void *object);
 #endif
 
-#ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
-void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
-			bool to_user);
-#else
-static inline void __check_heap_object(const void *ptr, unsigned long n,
-				       struct page *page, bool to_user) { }
-#endif
-
 /*
  * Some archs want to perform DMA into kmalloc caches and need a guaranteed
  * alignment larger than the alignment of a 64-bit integer.
@@ -669,8 +661,7 @@ static inline __alloc_size(1, 2) void *kcalloc(size_t n, size_t size, gfp_t flag
  * allocator where we care about the real place the memory allocation
  * request comes from.
  */
-extern void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
-				   __alloc_size(1);
+extern void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller);
 #define kmalloc_track_caller(size, flags) \
 	__kmalloc_track_caller(size, flags, _RET_IP_)
 

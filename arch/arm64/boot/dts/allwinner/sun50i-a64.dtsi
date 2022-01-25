@@ -1220,10 +1220,10 @@
 			reg = <0x01c62000 0x1000>,
 			      <0x01c63000 0x1000>;
 			reg-names = "mbus", "dram";
-			clocks = <&ccu CLK_BUS_DRAM>,
+			clocks = <&ccu CLK_MBUS>,
 				 <&ccu CLK_DRAM>,
-				 <&ccu CLK_MBUS>;
-			clock-names = "apb", "dram", "mbus";
+				 <&ccu CLK_BUS_DRAM>;
+			clock-names = "mbus", "dram", "bus";
 			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -1298,8 +1298,8 @@
 			reg-io-width = <1>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_HDMI>, <&ccu CLK_HDMI_DDC>,
-				 <&ccu CLK_HDMI>;
-			clock-names = "iahb", "isfr", "tmds";
+				 <&ccu CLK_HDMI>, <&rtc 0>;
+			clock-names = "iahb", "isfr", "tmds", "cec";
 			resets = <&ccu RST_BUS_HDMI1>;
 			reset-names = "ctrl";
 			phys = <&hdmi_phy>;

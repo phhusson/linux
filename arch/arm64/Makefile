@@ -58,6 +58,11 @@ stack_protector_prepare: prepare0
 					include/generated/asm-offsets.h))
 endif
 
+ifeq ($(CONFIG_AS_HAS_ARMV8_2), y)
+# make sure to pass the newest target architecture to -march.
+asm-arch := armv8.2-a
+endif
+
 # Ensure that if the compiler supports branch protection we default it
 # off, this will be overridden if we are using branch protection.
 branch-prot-flags-y += $(call cc-option,-mbranch-protection=none)
@@ -148,7 +153,10 @@ libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 boot		:= arch/arm64/boot
 KBUILD_IMAGE	:= $(boot)/Image.gz
 
+# Don't compile Image in mixed build with "all" target
+ifndef KBUILD_MIXED_TREE
 all:	Image.gz
+endif
 
 
 Image: vmlinux

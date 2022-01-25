@@ -3,10 +3,7 @@
 
 /dts-v1/;
 
-#include "sun50i-h6.dtsi"
-#include "sun50i-h6-cpu-opp.dtsi"
-
-#include <dt-bindings/gpio/gpio.h>
+#include "sun50i-h6-tanix.dtsi"
 
 / {
 	model = "Tanix TX6";
@@ -128,7 +125,6 @@
 
 &r_ir {
 	linux,rc-map-name = "rc-tanix-tx5max";
-	status = "okay";
 };
 
 &sound_hdmi {
@@ -137,19 +133,14 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_ph_pins>;
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	uart-has-rtscts;
 	status = "okay";
-};
 
-&usb2otg {
-	dr_mode = "host";
-	status = "okay";
-};
-
-&usb2phy {
-	status = "okay";
-};
-
-&usb3phy {
-	status = "okay";
+	bluetooth {
+		compatible = "realtek,rtl8822cs-bt";
+		device-wake-gpios = <&r_pio 1 2 GPIO_ACTIVE_HIGH>; /* PM2 */
+		host-wake-gpios = <&r_pio 1 1 GPIO_ACTIVE_HIGH>; /* PM1 */
+		enable-gpios = <&r_pio 1 4 GPIO_ACTIVE_HIGH>; /* PM4 */
+	};
 };

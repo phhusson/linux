@@ -3,6 +3,7 @@
 #define _LINUX_SCHED_TOPOLOGY_H
 
 #include <linux/topology.h>
+#include <linux/android_vendor.h>
 
 #include <linux/sched/idle.h>
 
@@ -81,6 +82,8 @@ struct sched_domain_shared {
 	atomic_t	ref;
 	atomic_t	nr_busy_cpus;
 	int		has_idle_cores;
+
+	ANDROID_VENDOR_DATA(1);
 };
 
 struct sched_domain {
@@ -266,10 +269,10 @@ unsigned long arch_scale_thermal_pressure(int cpu)
 }
 #endif
 
-#ifndef arch_set_thermal_pressure
+#ifndef arch_update_thermal_pressure
 static __always_inline
-void arch_set_thermal_pressure(const struct cpumask *cpus,
-			       unsigned long th_pressure)
+void arch_update_thermal_pressure(const struct cpumask *cpus,
+				  unsigned long capped_frequency)
 { }
 #endif
 

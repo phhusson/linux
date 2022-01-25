@@ -651,36 +651,9 @@
 	status = "okay";
 };
 
-#ifdef USE_WIFI
-&sdmmc1 {
-	bus-width = <4>;
-	cap-sd-highspeed;
-	cap-sdio-irq;
-	disable-wp;
-	keep-power-in-suspend;
-	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+&spi1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
-	sd-uhs-sdr104;
-	vmmc-supply = <&vcc_wl>;
-	vqmmc-supply = <&vcc_1v8>;
-	status = "okay";
-};
-#endif
-
-&sfc {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	status = "disabled";
-
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <108000000>;
-		spi-rx-bus-width = <4>;
-		spi-tx-bus-width = <1>;
-	};
+	pinctrl-0 = <&spi1m1_cs0 &spi1m1_pins>;
 };
 
 &tsadc {
