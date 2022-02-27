@@ -338,7 +338,7 @@ DEFINE_QNODE(slv_clk_ctl, MSM8998_SLAVE_CLK_CTL, 4, -1, 47, true, -1, 0, -1, 0);
 DEFINE_QNODE(slv_glm, MSM8998_SLAVE_GLM, 4, -1, 209, true, -1, 0, -1, 0);
 DEFINE_QNODE(slv_spdm, MSM8998_SLAVE_SPDM, 4, -1, 60, true, -1, 0, -1, 0);
 DEFINE_QNODE(slv_gpuss_cfg, MSM8998_SLAVE_GPUSS_CFG, 4, -1, 11, true, -1, 0, -1, 0);
-DEFINE_QNODE(slv_cnoc_mnoc_cfg, MSM8998_SLAVE_BLSP_1, 4, -1, 66, true, -1, 0, -1, MSM8998_MASTER_CNOC_MNOC_CFG);
+DEFINE_QNODE(slv_cnoc_mnoc_cfg, MSM8998_SLAVE_CNOC_MNOC_CFG, 4, -1, 66, true, -1, 0, -1, MSM8998_MASTER_CNOC_MNOC_CFG);
 DEFINE_QNODE(slv_qm_cfg, MSM8998_SLAVE_QM_CFG, 4, -1, 212, true, -1, 0, -1, 0);
 DEFINE_QNODE(slv_mss_cfg, MSM8998_SLAVE_MSS_CFG, 4, -1, 48, true, -1, 0, -1, 0);
 DEFINE_QNODE(slv_ufs_cfg, MSM8998_SLAVE_UFS_CFG, 4, -1, 92, true, -1, 0, -1, 0);
