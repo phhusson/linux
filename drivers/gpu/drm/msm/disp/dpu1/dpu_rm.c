@@ -263,7 +263,7 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
 	*pp_idx = idx;
 
 	if (!reqs->topology.num_dspp)
-		return true;
+		return !lm_cfg->dspp;
 
 	idx = lm_cfg->dspp - DSPP_0;
 	if (idx < 0 || idx >= ARRAY_SIZE(rm->dspp_blks)) {
