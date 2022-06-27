@@ -569,6 +569,8 @@ static int hdmi_8998_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 	struct hdmi_8998_phy_pll_reg_cfg cfg;
 	int i, ret;
 
+	printk(KERN_INFO "hdmi_8998_pll_set_clk_rate %lu %lu\n", rate, parent_rate);
+
 	/* FIXME: support atomic update ? */
 
 	memset(&cfg, 0x00, sizeof(cfg));
@@ -749,6 +751,8 @@ static int hdmi_8998_pll_prepare(struct clk_hw *hw)
 	struct hdmi_phy *phy = pll_get_phy(pll);
 	int i, ret = 0;
 
+	printk(KERN_INFO "hdmi_8998_pll_prepare\n");
+
 	hdmi_phy_write(phy, REG_HDMI_8998_PHY_CFG, 0x1);
 	udelay(100);
 
@@ -813,6 +817,8 @@ static unsigned long hdmi_8998_pll_recalc_rate(struct clk_hw *hw,
 	u64 fdata;
 	u32 cmp1, cmp2, cmp3, pll_cmp;
 
+	printk(KERN_INFO "hdmi_8998_pll_recalc_rate %lu\n", parent_rate);
+
 	cmp1 = hdmi_pll_read(pll, REG_HDMI_8998_PHY_QSERDES_COM_LOCK_CMP1_MODE0);
 	cmp2 = hdmi_pll_read(pll, REG_HDMI_8998_PHY_QSERDES_COM_LOCK_CMP2_MODE0);
 	cmp3 = hdmi_pll_read(pll, REG_HDMI_8998_PHY_QSERDES_COM_LOCK_CMP3_MODE0);
@@ -833,6 +839,8 @@ static void hdmi_8998_pll_unprepare(struct clk_hw *hw)
 {
 	struct hdmi_pll_8998 *pll = hw_clk_to_pll(hw);
 	struct hdmi_phy *phy = pll_get_phy(pll);
+
+	printk(KERN_INFO "hdmi_8998_pll_unprepare\n");
 
 	hdmi_phy_write(phy, REG_HDMI_8998_PHY_PD_CTL, 0);
 	usleep_range(100, 150);
