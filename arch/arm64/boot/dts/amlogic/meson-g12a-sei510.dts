@@ -64,16 +64,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	cvbs-connector {
-		compatible = "composite-video-connector";
-
-		port {
-			cvbs_connector_in: endpoint {
-				remote-endpoint = <&cvbs_vdac_out>;
-			};
-		};
-	};
-
 	emmc_pwrseq: emmc-pwrseq {
 		compatible = "mmc-pwrseq-emmc";
 		reset-gpios = <&gpio BOOT_12 GPIO_ACTIVE_LOW>;
@@ -312,11 +302,11 @@
 	clock-latency = <50000>;
 };
 
-&cvbs_vdac_port {
+/*&cvbs_vdac_port {
 	cvbs_vdac_out: endpoint {
 		remote-endpoint = <&cvbs_connector_in>;
 	};
-};
+};*/
 
 &ethmac {
 	status = "okay";
