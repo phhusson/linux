@@ -421,7 +421,8 @@
 };
 
 /* SD card */
-&sd_emmc_b {
+// Disabled because we have serial port over sdcard
+/*&sd_emmc_b {
 	status = "okay";
 	pinctrl-0 = <&sdcard_c_pins>;
 	pinctrl-1 = <&sdcard_clk_gate_c_pins>;
@@ -435,7 +436,7 @@
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&vddao_3v3>;
 	vqmmc-supply = <&vddao_3v3>;
-};
+};*/
 
 /* eMMC */
 &sd_emmc_c {
@@ -488,7 +489,7 @@
 
 &uart_AO {
 	status = "okay";
-	pinctrl-0 = <&uart_ao_a_pins>;
+	pinctrl-0 = <&uart_ao_a_c_pins>;
 	pinctrl-names = "default";
 };
 
