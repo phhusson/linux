@@ -30,7 +30,7 @@ struct dummy_buf {
 };
 
 /* 16 MiB for parsed bitstream swap exchange */
-#define SIZE_VIFIFO SZ_16M
+#define SIZE_VIFIFO SZ_64M
 
 static u32 get_output_size(u32 width, u32 height)
 {
