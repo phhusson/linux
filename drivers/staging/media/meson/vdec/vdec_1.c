@@ -8,7 +8,9 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/arm-smccc.h>
 
 #include "vdec_1.h"
 #include "vdec_helpers.h"
@@ -25,6 +27,79 @@
 static int
 vdec_1_load_firmware(struct amvdec_session *sess, const char *fwname)
 {
+#if 1
+	struct amvdec_core *core = sess->core;
+	struct device *dev = core->dev_dec;
+    struct arm_smccc_res res;
+	struct amvdec_codec_ops *codec_ops = sess->fmt_out->codec_ops;
+
+#define TEE_SMC_FAST_CALL_VAL(func_num) \
+    ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32, \
+            ARM_SMCCC_OWNER_TRUSTED_OS, (func_num))
+
+#define TEE_SMC_FUNCID_CALLS_UID 0xFF01
+#define TEE_SMC_CALLS_UID \
+    ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32, \
+               ARM_SMCCC_OWNER_TRUSTED_OS_END, \
+               TEE_SMC_FUNCID_CALLS_UID)
+
+    arm_smccc_smc(TEE_SMC_CALLS_UID,
+            0, 0, 0/*is_swap*/, 0, 0, 0, 0, &res);
+    dev_err(dev, "TEE UID %x %x %x %x\n", res.a0, res.a1, res.a2, res.a3);
+
+#define TEE_SMC_FUNCID_GET_OS_REVISION 0x0001
+#define TEE_SMC_CALL_GET_OS_REVISION \
+    TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_GET_OS_REVISION)
+    arm_smccc_smc(TEE_SMC_CALL_GET_OS_REVISION,
+            0, 0, 0/*is_swap*/, 0, 0, 0, 0, &res);
+    dev_err(dev, "OS revision %x %x %x %x\n", res.a0, res.a1, res.a2, res.a3);
+
+
+#define TEE_SMC_FUNCID_LOAD_VIDEO_FW               15
+#define TEE_SMC_LOAD_VIDEO_FW \
+    TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_LOAD_VIDEO_FW)
+#define OPTEE_VDEC_LEGENCY 0
+#define VIDEO_DEC_MPEG12 0
+#define VIDEO_DEC_H264 11
+
+#if 0
+for(int i=0; i<32; i++) {
+if(i == 16 || i == 17 || i == 18 || i == 19) continue;
+    arm_smccc_smc(TEE_SMC_LOAD_VIDEO_FW,
+            i, 0, 0/*is_swap*/, 0, 0, 0, 0, &res);
+    dev_err(dev, "Load firmware %d returned %d\n", i, res.a0);
+}
+#endif
+    // Load wrong firmware, so that TA will reset hw component for us
+    arm_smccc_smc(TEE_SMC_LOAD_VIDEO_FW,
+            1, OPTEE_VDEC_LEGENCY, 0/*is_swap*/, 0, 0, 0, 0, &res);
+
+    int fw_id = -1;
+    if(sess->fmt_out->pixfmt == V4L2_PIX_FMT_H264) {
+        dev_err(dev, "Loading h264 fw...\n");
+        fw_id = 11;
+    }
+    if(sess->fmt_out->pixfmt == V4L2_PIX_FMT_MPEG1 || sess->fmt_out->pixfmt == V4L2_PIX_FMT_MPEG2) {
+        dev_err(dev, "Loading mpeg12 fw...\n");
+        fw_id = 0;
+    }
+    dev_err(dev, "Loading firmware %d\n", fw_id);
+
+    arm_smccc_smc(TEE_SMC_LOAD_VIDEO_FW,
+            fw_id, OPTEE_VDEC_LEGENCY, 0/*is_swap*/, 0, 0, 0, 0, &res);
+
+    dev_err(dev, "Load firmware returned %d\n", res.a0);
+
+    msleep(100);
+
+	if (codec_ops->load_extended_firmware)
+		codec_ops->load_extended_firmware(sess,
+							0,
+							0);
+
+
+    return 0;
+#else
 	const struct firmware *fw;
 	struct amvdec_core *core = sess->core;
 	struct device *dev = core->dev_dec;
@@ -81,6 +156,7 @@ free_mc:
 release_firmware:
 	release_firmware(fw);
 	return ret;
+#endif
 }
 
 static int vdec_1_stbuf_power_up(struct amvdec_session *sess)
@@ -230,7 +306,8 @@ static int vdec_1_start(struct amvdec_session *sess)
 	/* Enable firmware processor */
 	amvdec_write_dos(core, MPSR, 1);
 	/* Let the firmware settle */
-	usleep_range(10, 20);
+	//usleep_range(1000, 2000);
+    msleep(100);
 
 	return 0;
 

@@ -26,6 +26,55 @@
 static int vdec_hevc_load_firmware(struct amvdec_session *sess,
 				   const char *fwname)
 {
+#if 1
+	struct amvdec_core *core = sess->core;
+	struct device *dev = core->dev_dec;
+    struct arm_smccc_res res;
+	struct amvdec_codec_ops *codec_ops = sess->fmt_out->codec_ops;
+
+#define TEE_SMC_FAST_CALL_VAL(func_num) \
+    ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32, \
+            ARM_SMCCC_OWNER_TRUSTED_OS, (func_num))
+
+#define TEE_SMC_FUNCID_LOAD_VIDEO_FW               15
+#define TEE_SMC_LOAD_VIDEO_FW \
+    TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_LOAD_VIDEO_FW)
+#define OPTEE_VDEC_LEGENCY 0
+#define OPTEE_VDEC_HEVC 2
+#define VIDEO_DEC_MPEG12 0
+#define VIDEO_DEC_H264 14
+#define VIDEO_DEC_HEVC 16
+#define VIDEO_DEC_HEVC_MMU 17
+#define VIDEO_DEC_VP9 18
+#define VIDEO_DEC_VP9_MMU 19
+
+    arm_smccc_smc(TEE_SMC_LOAD_VIDEO_FW,
+            1, OPTEE_VDEC_LEGENCY, 0/*is_swap*/, 0, 0, 0, 0, &res);
+    dev_err(dev, "Load firmware 1 returned %d\n", res.a0);
+    arm_smccc_smc(TEE_SMC_LOAD_VIDEO_FW,
+            17, OPTEE_VDEC_LEGENCY, 0/*is_swap*/, 0, 0, 0, 0, &res);
+    dev_err(dev, "Load firmware 17 returned %d\n", res.a0);
+
+    int fw_id = -1;
+    if(sess->fmt_out->pixfmt == V4L2_PIX_FMT_VP9) {
+        dev_err(dev, "Loading vp9 fw...\n");
+        fw_id = VIDEO_DEC_VP9_MMU;
+    }
+    if(sess->fmt_out->pixfmt == V4L2_PIX_FMT_HEVC) {
+        dev_err(dev, "Loading hevc fw...\n");
+        fw_id = VIDEO_DEC_HEVC_MMU;
+    }
+    dev_err(dev, "Loading firmware %d\n", fw_id);
+
+    arm_smccc_smc(TEE_SMC_LOAD_VIDEO_FW,
+            fw_id, OPTEE_VDEC_LEGENCY, 0/*is_swap*/, 0, 0, 0, 0, &res);
+
+    dev_err(dev, "Load firmware returned %d\n", res.a0);
+
+    msleep(100);
+
+    return 0;
+#else
 	struct amvdec_core *core = sess->core;
 	struct device *dev = core->dev_dec;
 	const struct firmware *fw;
@@ -75,6 +124,7 @@ static int vdec_hevc_load_firmware(struct amvdec_session *sess,
 release_firmware:
 	release_firmware(fw);
 	return ret;
+#endif
 }
 
 static void vdec_hevc_stbuf_init(struct amvdec_session *sess)
@@ -218,7 +268,8 @@ static int vdec_hevc_start(struct amvdec_session *sess)
 
 	amvdec_write_dos(core, HEVC_MPSR, 1);
 	/* Let the firmware settle */
-	usleep_range(10, 20);
+	//usleep_range(1000, 200);
+    msleep(100);
 
 	return 0;
 
