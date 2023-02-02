@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/arm-smccc.h>
+#include <soc/amlogic/socinfo.h>
 
 #include "vdec_1.h"
 #include "vdec_helpers.h"
@@ -25,9 +26,8 @@
 #define MC_SIZE			(4096 * 4)
 
 static int
-vdec_1_load_firmware(struct amvdec_session *sess, const char *fwname)
+vdec_1_load_firmware_optee(struct amvdec_session *sess, const char *fwname)
 {
-#if 1
 	struct amvdec_core *core = sess->core;
 	struct device *dev = core->dev_dec;
     struct arm_smccc_res res;
@@ -99,7 +99,11 @@ if(i == 16 || i == 17 || i == 18 || i == 19) continue;
 
 
     return 0;
-#else
+}
+
+static int
+vdec_1_load_firmware(struct amvdec_session *sess, const char *fwname)
+{
 	const struct firmware *fw;
 	struct amvdec_core *core = sess->core;
 	struct device *dev = core->dev_dec;
@@ -156,7 +160,6 @@ free_mc:
 release_firmware:
 	release_firmware(fw);
 	return ret;
-#endif
 }
 
 static int vdec_1_stbuf_power_up(struct amvdec_session *sess)
@@ -285,7 +288,11 @@ static int vdec_1_start(struct amvdec_session *sess)
 
 	vdec_1_stbuf_power_up(sess);
 
-	ret = vdec_1_load_firmware(sess, sess->fmt_out->firmware_path);
+    if (meson_get_secure_boot_state() == 1) {
+        ret = vdec_1_load_firmware_optee(sess, sess->fmt_out->firmware_path);
+    } else {
+        ret = vdec_1_load_firmware(sess, sess->fmt_out->firmware_path);
+    }
 	if (ret)
 		goto stop;
 
@@ -306,8 +313,12 @@ static int vdec_1_start(struct amvdec_session *sess)
 	/* Enable firmware processor */
 	amvdec_write_dos(core, MPSR, 1);
 	/* Let the firmware settle */
-	//usleep_range(1000, 2000);
-    msleep(100);
+    if (meson_get_secure_boot_state() == 1) {
+        // When running secure boot, it looks like the codec needs more time to settle (to auth the image?)
+        msleep(100);
+    } else {
+        usleep_range(1000, 2000);
+    }
 
 	return 0;
 
