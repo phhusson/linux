@@ -33,6 +33,7 @@
 #define RC6_6A_LCC_MASK		0xffff0000 /* RC6-6A-32 long customer code mask */
 #define RC6_6A_MCE_CC		0x800f0000 /* MCE customer code */
 #define RC6_6A_ZOTAC_CC		0x80340000 /* Zotac customer code */
+#define RC6_6A_FREEBOX_CC	0x80380000 /* Freebox customer code */
 #define RC6_6A_KATHREIN_CC	0x80460000 /* Kathrein RCU-676 customer code */
 #ifndef CHAR_BIT
 #define CHAR_BIT 8	/* Normally in <limits.h> */
@@ -237,6 +238,7 @@ again:
 				break;
 			case 32:
 				switch (scancode & RC6_6A_LCC_MASK) {
+				case RC6_6A_FREEBOX_CC:
 				case RC6_6A_MCE_CC:
 				case RC6_6A_KATHREIN_CC:
 				case RC6_6A_ZOTAC_CC:
