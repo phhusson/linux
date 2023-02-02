@@ -1556,6 +1556,14 @@ status = "disable";
 							bias-disable;
 						};
 					};
+
+					uart_ao_a_c_pins: uart-a-ao-c {
+						mux {
+							groups = "uart_ao_a_rx_c", "uart_ao_a_tx_c";
+							function = "uart_ao_a_c";
+							bias-disable;
+						};
+					};
 				};
 			};
 
