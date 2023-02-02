@@ -186,7 +186,7 @@ static int codec_h264_start(struct amvdec_session *sess)
 
 	workspace_offset = h264->workspace_paddr - WORKSPACE_BUF_OFFSET;
 	amvdec_write_dos(core, AV_SCRATCH_1, workspace_offset);
-	amvdec_write_dos(core, AV_SCRATCH_G, h264->ext_fw_paddr);
+	//amvdec_write_dos(core, AV_SCRATCH_G, h264->ext_fw_paddr);
 	amvdec_write_dos(core, AV_SCRATCH_I, h264->sei_paddr -
 					     workspace_offset);
 
@@ -230,13 +230,14 @@ static int codec_h264_load_extended_firmware(struct amvdec_session *sess,
 	struct codec_h264 *h264;
 	struct amvdec_core *core = sess->core;
 
-	if (len < SIZE_EXT_FW)
-		return -EINVAL;
+	//if (len < SIZE_EXT_FW)
+	//	return -EINVAL;
 
 	h264 = kzalloc(sizeof(*h264), GFP_KERNEL);
 	if (!h264)
 		return -ENOMEM;
 
+#if 0
 	h264->ext_fw_vaddr = dma_alloc_coherent(core->dev, SIZE_EXT_FW,
 						&h264->ext_fw_paddr,
 						GFP_KERNEL);
@@ -246,6 +247,7 @@ static int codec_h264_load_extended_firmware(struct amvdec_session *sess,
 	}
 
 	memcpy(h264->ext_fw_vaddr, data, SIZE_EXT_FW);
+#endif
 	sess->priv = h264;
 
 	return 0;
