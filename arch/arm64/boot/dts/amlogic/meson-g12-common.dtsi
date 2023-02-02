@@ -103,7 +103,7 @@
 		ranges;
 
 		/* 3 MiB reserved for ARM Trusted Firmware (BL31) */
-		secmon_reserved: secmon@5000000 {
+		secmon@5000000 {
 			reg = <0x0 0x05000000 0x0 0x300000>;
 			no-map;
 		};
@@ -120,6 +120,25 @@
 			size = <0x0 0x10000000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
+		};
+//bl31
+//NOTE: Edited by BL
+                secmon_reserved:linux,secmon {
+compatible = "amlogic, aml_secmon_memory"; //This is a fake compatible, thre is no such driver, it's just for bootloader
+			no-map;
+                        //compatible = "shared-dma-pool";
+                        //reusable;
+                        size = <0x0 0x400000>;
+                        alignment = <0x0 0x400000>;
+                        alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+                };
+//bl32
+//NOTE: Edited by BL
+		linux_secos: linux,secos {
+compatible = "amlogic, aml_secmon_memory"; //This is a fake compatible, thre is no such driver, it's just for bootloader
+reg = <0x0 0x05300000 0x0 0x2000000>;
+no-map;
+status = "disable";
 		};
 	};
 
