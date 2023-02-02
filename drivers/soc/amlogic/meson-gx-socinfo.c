@@ -15,9 +15,12 @@
 #include <linux/bitfield.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <soc/amlogic/socinfo.h>
 
 #define AO_SEC_SD_CFG8		0xe0
 #define AO_SEC_SOCINFO_OFFSET	AO_SEC_SD_CFG8
+#define AO_SEC_SD_CFG10		0xe8
+#define AO_SEC_SD_CFG10_SECURE_BOOT BIT(4)
 
 #define SOCINFO_MAJOR	GENMASK(31, 24)
 #define SOCINFO_PACK	GENMASK(23, 16)
@@ -76,6 +79,12 @@ static const struct meson_gx_package_id {
 	{ "A113L", 0x2c, 0x0, 0xf8 },
 };
 
+static int meson_secure_boot = -1;
+int meson_get_secure_boot_state() {
+    return meson_secure_boot;
+}
+EXPORT_SYMBOL(meson_get_secure_boot_state);
+
 static inline unsigned int socinfo_to_major(u32 socinfo)
 {
 	return FIELD_GET(SOCINFO_MAJOR, socinfo);
@@ -125,6 +134,30 @@ static const char *socinfo_to_soc_id(u32 socinfo)
 	return "Unknown";
 }
 
+static ssize_t secure_boot_show(struct device *dev, struct device_attribute *attr,
+                 char *buf)
+{
+    switch (meson_get_secure_boot_state()) {
+        case 0:
+            return sprintf(buf, "disabled\n");
+        case 1:
+            return sprintf(buf, "enabled\n");
+        default:
+            return sprintf(buf, "unknown\n");
+    }
+}
+
+static DEVICE_ATTR_RO(secure_boot);
+
+static struct attribute *meson_soc_attr[] = {
+    &dev_attr_secure_boot.attr,
+    NULL,
+};
+
+const struct attribute_group meson_soc_attr_group = {
+    .attrs = meson_soc_attr,
+};
+
 static int __init meson_gx_socinfo_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
@@ -132,6 +165,7 @@ static int __init meson_gx_socinfo_init(void)
 	struct device_node *np;
 	struct regmap *regmap;
 	unsigned int socinfo;
+	unsigned int secure_boot;
 	struct device *dev;
 	int ret;
 
@@ -174,6 +208,17 @@ static int __init meson_gx_socinfo_init(void)
 		return -ENODEV;
 
 	soc_dev_attr->family = "Amlogic Meson";
+
+	ret = regmap_read(regmap, AO_SEC_SD_CFG10, &secure_boot);
+	if (ret < 0)
+		return ret;
+
+    if (secure_boot & AO_SEC_SD_CFG10_SECURE_BOOT) {
+        meson_secure_boot = 1;
+    } else {
+        meson_secure_boot = 0;
+    }
+
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%x:%x - %x:%x",
 					   socinfo_to_major(socinfo),
 					   socinfo_to_minor(socinfo),
@@ -182,6 +227,7 @@ static int __init meson_gx_socinfo_init(void)
 	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "%s (%s)",
 					 socinfo_to_soc_id(socinfo),
 					 socinfo_to_package_id(socinfo));
+	soc_dev_attr->custom_attr_group = &meson_soc_attr_group;
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
