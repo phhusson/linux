@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <drm/drm_bridge_connector.h>
 #include <drm/drm_edid.h>
+#include <media/cec.h>
 
 #include "msm_kms.h"
 #include "hdmi.h"
@@ -248,6 +249,7 @@ static struct edid *msm_hdmi_bridge_get_edid(struct drm_bridge *bridge,
 	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl | HDMI_CTRL_ENABLE);
 
 	edid = drm_get_edid(connector, hdmi->i2c);
+	cec_s_phys_addr_from_edid(hdmi->cec_adap, edid);
 
 	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl);
 
