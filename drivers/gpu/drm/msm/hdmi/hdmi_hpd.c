@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
+#include <media/cec.h>
 
 #include "msm_kms.h"
 #include "hdmi.h"
@@ -229,15 +230,17 @@ enum drm_connector_status msm_hdmi_bridge_detect(
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 	struct hdmi *hdmi = hdmi_bridge->hdmi;
-	enum drm_connector_status stat_gpio, stat_reg;
+	enum drm_connector_status status, stat_gpio, stat_reg;
 	int retry = 20;
 
 	/*
 	 * some platforms may not have hpd gpio. Rely only on the status
 	 * provided by REG_HDMI_HPD_INT_STATUS in this case.
 	 */
-	if (!hdmi->hpd_gpiod)
-		return detect_reg(hdmi);
+	if (!hdmi->hpd_gpiod) {
+		status = detect_reg(hdmi);
+		goto out;
+	}
 
 	do {
 		stat_gpio = detect_gpio(hdmi);
@@ -258,5 +261,11 @@ enum drm_connector_status msm_hdmi_bridge_detect(
 		DBG("hpd gpio tells us: %d", stat_gpio);
 	}
 
-	return stat_gpio;
+	status = stat_gpio;
+
+out:
+	if (!status)
+		cec_phys_addr_invalidate(hdmi->cec_adap);
+
+	return status;
 }
