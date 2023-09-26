@@ -909,6 +909,15 @@ config INPUT_RAVE_SP_PWRBUTTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called rave-sp-pwrbutton.
 
+config INPUT_RN5T618_PWRKEY
+    tristate "RN5T618/RC5T619 Power button driver"
+    depends on MFD_RN5T618
+    help
+	  Say Y here if you want to enable power key reporting from RN5T618/RC5T619
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rn5t618-pwrkey.
+
 config INPUT_SC27XX_VIBRA
 	tristate "Spreadtrum sc27xx vibrator support"
 	depends on MFD_SC27XX_PMIC || COMPILE_TEST

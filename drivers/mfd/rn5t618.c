@@ -29,6 +29,7 @@ static const struct mfd_cell rc5t619_cells[] = {
 	{ .name = "rn5t618-regulator" },
 	{ .name = "rc5t619-rtc" },
 	{ .name = "rn5t618-wdt" },
+	{ .name = "rn5t618-powerkey" },
 };
 
 static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
@@ -51,6 +52,8 @@ static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
 	case RN5T618_CHGCTRL_IRR ... RN5T618_CHGERR_MONI:
 	case RN5T618_GCHGDET:
 	case RN5T618_CONTROL ... RN5T618_CC_AVEREG0:
+    case RN5T618_PWRMON:
+    case RN5T618_PWRIRQ:
 		return true;
 	default:
 		return false;
