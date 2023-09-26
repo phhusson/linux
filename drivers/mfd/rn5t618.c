@@ -205,6 +205,12 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
+    ret = rn5t618_irq_init(priv);
+    if (ret) {
+        dev_err(&i2c->dev, "irq init failed: %d\n", ret);
+        return ret;
+    }
+
 	if (priv->variant == RC5T619)
 		ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_NONE,
 					   rc5t619_cells,
@@ -237,7 +243,7 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	return rn5t618_irq_init(priv);
+	return 0;
 }
 
 static void rn5t618_i2c_remove(struct i2c_client *i2c)
