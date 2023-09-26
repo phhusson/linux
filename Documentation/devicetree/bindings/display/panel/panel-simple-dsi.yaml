@@ -30,6 +30,8 @@ properties:
       - auo,b080uan01
         # Boe Corporation 8.0" WUXGA TFT LCD panel
       - boe,tv080wum-nl0
+        # CPT CLAA101FP05 10.1" 1920x1200 TFT LCD panel
+      - cpt,claa101fp05
         # Innolux P079ZCA 7.85" 768x1024 TFT LCD panel
       - innolux,p079zca
         # JDI FHD_R63452 1080x1920 5.2" IPS LCD Panel
