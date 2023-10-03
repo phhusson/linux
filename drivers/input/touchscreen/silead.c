@@ -83,6 +83,7 @@ struct silead_ts_data {
 	u32 pen_x_res;
 	u32 pen_y_res;
 	int pen_up_count;
+    bool ignore_reset_errors;
 };
 
 struct silead_fw_data {
@@ -320,7 +321,7 @@ static int silead_ts_init(struct i2c_client *client)
 
 	error = i2c_smbus_write_byte_data(client, SILEAD_REG_RESET,
 					  SILEAD_CMD_RESET);
-	if (error)
+	if (error && !data->ignore_reset_errors)
 		goto i2c_write_err;
 	usleep_range(SILEAD_CMD_SLEEP_MIN, SILEAD_CMD_SLEEP_MAX);
 
@@ -338,7 +339,7 @@ static int silead_ts_init(struct i2c_client *client)
 
 	error = i2c_smbus_write_byte_data(client, SILEAD_REG_RESET,
 					  SILEAD_CMD_START);
-	if (error)
+	if (error && !data->ignore_reset_errors)
 		goto i2c_write_err;
 	usleep_range(SILEAD_CMD_SLEEP_MIN, SILEAD_CMD_SLEEP_MAX);
 
@@ -351,11 +352,12 @@ i2c_write_err:
 
 static int silead_ts_reset(struct i2c_client *client)
 {
+	struct silead_ts_data *data = i2c_get_clientdata(client);
 	int error;
 
 	error = i2c_smbus_write_byte_data(client, SILEAD_REG_RESET,
 					  SILEAD_CMD_RESET);
-	if (error)
+	if (error && !data->ignore_reset_errors)
 		goto i2c_write_err;
 	usleep_range(SILEAD_CMD_SLEEP_MIN, SILEAD_CMD_SLEEP_MAX);
 
@@ -381,9 +383,10 @@ i2c_write_err:
 static int silead_ts_startup(struct i2c_client *client)
 {
 	int error;
+	struct silead_ts_data *data = i2c_get_clientdata(client);
 
 	error = i2c_smbus_write_byte_data(client, SILEAD_REG_RESET, 0x00);
-	if (error) {
+	if (error && !data->ignore_reset_errors) {
 		dev_err(&client->dev, "Startup error %d\n", error);
 		return error;
 	}
@@ -608,6 +611,7 @@ static void silead_ts_read_props(struct i2c_client *client)
 	data->pen_supported = device_property_read_bool(dev, "silead,pen-supported");
 	device_property_read_u32(dev, "silead,pen-resolution-x", &data->pen_x_res);
 	device_property_read_u32(dev, "silead,pen-resolution-y", &data->pen_y_res);
+    data->ignore_reset_errors = device_property_read_bool(dev, "silead,ignore-reset-errors");
 }
 
 #ifdef CONFIG_ACPI
