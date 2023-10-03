@@ -61,6 +61,7 @@ struct rockchip_lvds {
 	struct drm_connector connector;
 	struct rockchip_encoder encoder;
 	struct dev_pin_info *pins;
+	bool force_6bits;
 };
 
 static inline struct rockchip_lvds *connector_to_lvds(struct drm_connector *connector)
@@ -135,9 +136,12 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 				   struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 
 	s->output_mode = ROCKCHIP_OUT_MODE_P888;
 	s->output_type = DRM_MODE_CONNECTOR_LVDS;
+	if (lvds->force_6bits)
+		s->output_bpc = 6;
 
 	return 0;
 }
@@ -165,6 +169,7 @@ static int rk3288_lvds_poweron(struct rockchip_lvds *lvds)
 		val |= RK3288_LVDS_CH0_REG0_TTL_EN |
 			RK3288_LVDS_CH0_REG0_LANECK_EN;
 		rk3288_writel(lvds, RK3288_LVDS_CH0_REG0, val);
+		rk3288_writel(lvds, RK3288_LVDS_CH0_REG1, 0x0040);
 		rk3288_writel(lvds, RK3288_LVDS_CH0_REG2,
 			      RK3288_LVDS_PLL_FBDIV_REG2(0x46));
 		rk3288_writel(lvds, RK3288_LVDS_CH0_REG4,
@@ -590,6 +595,8 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		lvds->output = DISPLAY_OUTPUT_RGB;
 	else
 		lvds->output = rockchip_lvds_name_to_output(name);
+
+	lvds->force_6bits = of_property_present(dev->of_node, "rockchip,6bits");
 
 	if (lvds->output < 0) {
 		DRM_DEV_ERROR(dev, "invalid output type [%s]\n", name);
