@@ -79,7 +79,7 @@ static int msm_hdmi_ddc_read(struct hdmi *hdmi, u16 addr, u8 offset,
 	u8 *data, u16 data_len)
 {
 	int rc;
-	int retry = 5;
+	int retry = 10;
 	struct i2c_msg msgs[] = {
 		{
 			.addr	= addr >> 1,

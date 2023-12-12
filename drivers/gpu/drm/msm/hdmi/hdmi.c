@@ -25,7 +25,8 @@ void msm_hdmi_set_mode(struct hdmi *hdmi, bool power_on)
 
 	spin_lock_irqsave(&hdmi->reg_lock, flags);
 	if (power_on) {
-		ctrl |= HDMI_CTRL_ENABLE;
+		ctrl = hdmi_read(hdmi, REG_HDMI_CTRL);
+		ctrl |= HDMI_CTRL_ENABLE | HDMI_CTRL_DATAPATH_MODE;
 		if (!hdmi->hdmi_mode) {
 			ctrl |= HDMI_CTRL_HDMI;
 			hdmi_write(hdmi, REG_HDMI_CTRL, ctrl);
@@ -49,6 +50,9 @@ static irqreturn_t msm_hdmi_irq(int irq, void *dev_id)
 
 	/* Process HPD: */
 	msm_hdmi_hpd_irq(hdmi->bridge);
+
+	/* Process Scrambling ISR */
+	msm_hdmi_ddc_scrambling_irq(hdmi);
 
 	/* Process DDC: */
 	msm_hdmi_i2c_irq(hdmi->i2c);
