@@ -135,7 +135,7 @@ static const struct dpu_sspp_cfg msm8998_sspp[] = {
 		.features = DMA_CURSOR_MSM8998_MASK,
 		.sblk = &msm8998_cursor_sblk_0,
 		.xin_id = 2,
-		.type = SSP_TYPE_CURSOR,
+		.type = SSPP_TYPE_CURSOR,
 		.clk_ctrl = DPU_CLK_CTRL_CURSOR0,
 	}, {
 		.name = "sspp_13", .id = SSPP_CURSOR1,
@@ -143,7 +143,7 @@ static const struct dpu_sspp_cfg msm8998_sspp[] = {
 		.features = DMA_CURSOR_MSM8998_MASK,
 		.sblk = &msm8998_cursor_sblk_1,
 		.xin_id = 10,
-		.type = SSP_TYPE_CURSOR,
+		.type = SSPP_TYPE_CURSOR,
 		.clk_ctrl = DPU_CLK_CTRL_CURSOR1,
 	},
 };

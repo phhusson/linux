@@ -155,6 +155,7 @@ config DRM_MSM_DSI_7NM_PHY
 config DRM_MSM_HDMI
 	bool "Enable HDMI support in MSM DRM driver"
 	depends on DRM_MSM
+	select DRM_DISPLAY_HDMI_HELPER
 	default y
 	help
 	  Compile in support for the HDMI output MSM DRM driver. It can

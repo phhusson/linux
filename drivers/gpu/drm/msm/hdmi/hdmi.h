@@ -250,6 +250,8 @@ void msm_hdmi_i2c_irq(struct i2c_adapter *i2c);
 void msm_hdmi_i2c_destroy(struct i2c_adapter *i2c);
 struct i2c_adapter *msm_hdmi_i2c_init(struct hdmi *hdmi);
 
+void msm_hdmi_ddc_scrambling_irq(struct hdmi *hdmi);
+
 /*
  * hdcp
  */

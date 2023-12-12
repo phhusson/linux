@@ -351,8 +351,6 @@ static const uint32_t cursor_formats[] = {
 	.maxdwnscale = SSPP_UNITY_SCALE, \
 	.maxupscale = SSPP_UNITY_SCALE, \
 	.smart_dma_priority = 0, \
-	.src_blk = {.name = STRCAT("sspp_src_", num), \
-		.id = DPU_SSPP_SRC, .base = 0x00, .len = 0x150,}, \
 	.format_list = cursor_formats, \
 	.num_formats = ARRAY_SIZE(cursor_formats), \
 	.virt_format_list = cursor_formats, \

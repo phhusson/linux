@@ -108,6 +108,10 @@ static int qcom_icc_set_bimc_qos(struct icc_node *src)
 	provider = src->provider;
 	qp = to_qcom_provider(provider);
 
+    if (qn->qos.qos_port == -1) {
+        return 0;
+    }
+
 	if (qn->qos.qos_mode != NOC_QOS_MODE_INVALID)
 		mode = qn->qos.qos_mode;
 

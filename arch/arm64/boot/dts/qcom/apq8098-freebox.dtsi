@@ -13,6 +13,7 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+        bootargs = "earlycon=msm_serial_dm,0xc1b0000 root=/dev/nfs ip=dhcp nfsroot=10.126.43.1:/srv/debian-arm,v3,nolock,rsize=32768,wsize=32768,tcp,retrans=50 clk_ignore_unused";
 	};
 
 	reserved-memory {

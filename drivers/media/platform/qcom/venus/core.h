@@ -23,7 +23,7 @@
 #define VDBGH	"VenusHigh: "
 #define VDBGFW	"VenusFW  : "
 
-#define VIDC_CLKS_NUM_MAX		4
+#define VIDC_CLKS_NUM_MAX		8
 #define VIDC_VCODEC_CLKS_NUM_MAX	2
 #define VIDC_PMDOMAINS_NUM_MAX		3
 #define VIDC_RESETS_NUM_MAX		2
