@@ -131,7 +131,7 @@ struct venus_hfi_device {
 
 static bool venus_pkt_debug;
 int venus_fw_debug = HFI_DEBUG_MSG_ERROR | HFI_DEBUG_MSG_FATAL;
-static bool venus_fw_low_power_mode = true;
+static bool venus_fw_low_power_mode = false;
 static int venus_hw_rsp_timeout = 1000;
 static bool venus_fw_coverage;
 
