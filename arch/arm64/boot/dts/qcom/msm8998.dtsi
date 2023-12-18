@@ -2887,6 +2887,7 @@
 			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <1>;
+            power-domains = <&mmcc MDSS_GDSC>;
 
 			clocks = <&mmcc MDSS_AHB_CLK>,
 				 <&mmcc MDSS_AXI_CLK>,
@@ -3244,13 +3245,8 @@
 			clocks = <&mmcc VIDEO_CORE_CLK>,
 				 <&mmcc VIDEO_AHB_CLK>,
 				 <&mmcc VIDEO_AXI_CLK>,
-				 <&mmcc VIDEO_MAXI_CLK>,
-//Added
-				 <&mmcc MNOC_MAXI_CLK>,
-                 <&mmcc MNOC_AHB_CLK>,
-				 <&gcc GCC_MMSS_SYS_NOC_AXI_CLK>,
-				 <&gcc GCC_MSS_SNOC_AXI_CLK>;
-			clock-names = "core", "iface", "bus", "mbus", "maxi", "ahb", "noc", "snoc";
+				 <&mmcc VIDEO_MAXI_CLK>;
+			clock-names = "core", "iface", "bus", "mbus";
 			interconnects = <&mnoc MASTER_VENUS &bimc SLAVE_EBI>,
 					<&gnoc MASTER_APSS_PROC &mnoc SLAVE_VENUS_CFG>;
 			interconnect-names = "video-mem", "cpu-cfg";
