@@ -350,7 +350,6 @@ static const uint32_t cursor_formats[] = {
 	{ \
 	.maxdwnscale = SSPP_UNITY_SCALE, \
 	.maxupscale = SSPP_UNITY_SCALE, \
-	.smart_dma_priority = 0, \
 	.format_list = cursor_formats, \
 	.num_formats = ARRAY_SIZE(cursor_formats), \
 	.virt_format_list = cursor_formats, \
