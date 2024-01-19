@@ -1,0 +1,20 @@
+/dts-v1/;
+
+#include "meson-g12a-fbx8am.dtsi"
+
+/ {
+	compatible = "freebox,fbx8am-brcm", "freebox,fbx8am", "amlogic,g12a";
+};
+
+&uart_A {
+    bluetooth {
+        compatible = "realtek,rtl8822cs-bt";
+        enable-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
+        host-wake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+        device-wake-gpios = <&gpio GPIOX_18 GPIO_ACTIVE_HIGH>;
+    };
+};
+
+&sd_emmc_a {
+    // No explicit compatible for rtl8822cs sdio
+};

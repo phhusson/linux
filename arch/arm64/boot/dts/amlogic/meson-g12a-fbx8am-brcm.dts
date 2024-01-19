@@ -1,0 +1,27 @@
+/dts-v1/;
+
+#include "meson-g12a-fbx8am.dtsi"
+
+/ {
+	compatible = "freebox,fbx8am-brcm", "freebox,fbx8am", "amlogic,g12a";
+};
+
+&uart_A {
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
+		max-speed = <2000000>;
+		clocks = <&wifi32k>;
+		clock-names = "lpo";
+		vbat-supply = <&vddao_3v3>;
+		vddio-supply = <&vddio_ao1v8>;
+	};
+};
+
+&sd_emmc_a {
+    // TODO: It can be two broadcom chips, which?
+    brcmf: wifi@1 {
+        reg = <1>;
+        compatible = "brcm,bcm4329-fmac";
+    };
+};
