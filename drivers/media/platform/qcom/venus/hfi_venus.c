@@ -945,10 +945,12 @@ static int venus_sys_set_default_properties(struct venus_hfi_device *hdev)
 			dev_warn(dev, "setting idle response ON failed (%d)\n", ret);
 	}
 
-	ret = venus_sys_set_power_control(hdev, venus_fw_low_power_mode);
-	if (ret)
-		dev_warn(dev, "setting hw power collapse ON failed (%d)\n",
-			 ret);
+	if (!of_property_read_bool(dev->of_node, "qcom,no-low-power")) {
+		ret = venus_sys_set_power_control(hdev, venus_fw_low_power_mode);
+		if (ret)
+			dev_warn(dev, "setting hw power collapse ON failed (%d)\n",
+					ret);
+	}
 
 	/* For specific venus core, it is mandatory to set the UBWC configuration */
 	if (res->ubwc_conf) {
