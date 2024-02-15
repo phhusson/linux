@@ -3033,6 +3033,7 @@
 				 <&mmss_smmu 0x431>;
 			memory-region = <&venus_mem>;
 			status = "okay";
+			qcom,no-low-power;
 
 			video-decoder {
 				compatible = "venus-decoder";
