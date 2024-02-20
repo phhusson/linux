@@ -64,6 +64,9 @@ properties:
 
   qcom,no-low-power:
     type: boolean
+    description: |
+      Some venus firmwares break when receiving a low-power command.
+      The command is always sent by default. Use this flag to drop this behavior.
 
 required:
   - reg
