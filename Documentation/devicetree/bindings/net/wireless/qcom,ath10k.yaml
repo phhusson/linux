@@ -121,6 +121,15 @@ properties:
       Whether to skip executing an SCM call that reassigns the memory
       region ownership.
 
+  qcom,skip-msa-ready:
+    type: boolean
+    description:
+      Some WCNSS firmwares don't send the MSA ready indication.
+      By default, this is required by ath10k driver.
+      On those devices, it seem safe to skip this indication,
+      and continue loading the firmware.
+      This flag allows WCNSS to load on such devices.
+
   qcom,smem-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: State bits used by the AP to signal the WLAN Q6.

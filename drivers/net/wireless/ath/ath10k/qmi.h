@@ -108,6 +108,7 @@ struct ath10k_qmi {
 	struct ath10k_qmi_cal_data cal_data[MAX_NUM_CAL_V01];
 	bool msa_fixed_perm;
 	enum ath10k_qmi_state state;
+	bool skip_msa_ready;
 };
 
 int ath10k_qmi_wlan_enable(struct ath10k *ar,
