@@ -7,14 +7,17 @@
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/rocket_accel.h>
+#include <linux/file.h>
 #include <linux/interrupt.h>
 #include <linux/overflow.h>
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/sync_file.h>
 
 #include "rocket_core.h"
 #include "rocket_device.h"
+#include "rocket_devfreq.h"
 #include "rocket_drv.h"
 #include "rocket_job.h"
 #include "rocket_registers.h"
@@ -149,6 +152,8 @@ static void rocket_job_hw_submit(struct rocket_core *core, struct rocket_job *jo
 
 	rocket_pc_writel(core, TASK_DMA_BASE_ADDR, PC_TASK_DMA_BASE_ADDR_DMA_BASE_ADDR(0x0));
 
+	rocket_devfreq_record_busy(core);
+
 	rocket_pc_writel(core, OPERATION_ENABLE, PC_OPERATION_ENABLE_OP_EN(1));
 
 	dev_dbg(core->dev, "Submitted regcmd at 0x%llx to core %d", task->regcmd, core->index);
@@ -157,7 +162,7 @@ static void rocket_job_hw_submit(struct rocket_core *core, struct rocket_job *jo
 static int rocket_acquire_object_fences(struct drm_gem_object **bos,
 					int bo_count,
 					struct drm_sched_job *job,
-					bool is_write)
+					bool is_write, bool explicit_sync)
 {
 	int i, ret;
 
@@ -166,8 +171,8 @@ static int rocket_acquire_object_fences(struct drm_gem_object **bos,
 		if (ret)
 			return ret;
 
-		ret = drm_sched_job_add_implicit_dependencies(job, bos[i],
-							      is_write);
+		ret = drm_sched_job_add_resv_dependencies(job, bos[i]->resv,
+				explicit_sync ? DMA_RESV_USAGE_KERNEL : dma_resv_usage_rw(is_write));
 		if (ret)
 			return ret;
 	}
@@ -177,12 +182,12 @@ static int rocket_acquire_object_fences(struct drm_gem_object **bos,
 
 static void rocket_attach_object_fences(struct drm_gem_object **bos,
 					int bo_count,
-					struct dma_fence *fence)
+					struct dma_fence *fence, enum dma_resv_usage usage)
 {
 	int i;
 
 	for (i = 0; i < bo_count; i++)
-		dma_resv_add_fence(bos[i]->resv, fence, DMA_RESV_USAGE_WRITE);
+		dma_resv_add_fence(bos[i]->resv, fence, usage);
 }
 
 static int rocket_job_push(struct rocket_job *job)
@@ -211,11 +216,11 @@ static int rocket_job_push(struct rocket_job *job)
 
 		job->inference_done_fence = dma_fence_get(&job->base.s_fence->finished);
 
-		ret = rocket_acquire_object_fences(job->in_bos, job->in_bo_count, &job->base, false);
+		ret = rocket_acquire_object_fences(job->in_bos, job->in_bo_count, &job->base, false, job->explicit_sync);
 		if (ret)
 			goto err_unlock;
 
-		ret = rocket_acquire_object_fences(job->out_bos, job->out_bo_count, &job->base, true);
+		ret = rocket_acquire_object_fences(job->out_bos, job->out_bo_count, &job->base, true, job->explicit_sync);
 		if (ret)
 			goto err_unlock;
 
@@ -224,7 +229,12 @@ static int rocket_job_push(struct rocket_job *job)
 		drm_sched_entity_push_job(&job->base);
 	}
 
-	rocket_attach_object_fences(job->out_bos, job->out_bo_count, job->inference_done_fence);
+	if (job->explicit_sync)
+		rocket_attach_object_fences(job->in_bos, job->in_bo_count,
+					job->inference_done_fence, DMA_RESV_USAGE_BOOKKEEP);
+	rocket_attach_object_fences(job->out_bos, job->out_bo_count,
+				job->inference_done_fence,
+				job->explicit_sync ? DMA_RESV_USAGE_BOOKKEEP : DMA_RESV_USAGE_WRITE);
 
 err_unlock:
 	drm_gem_unlock_reservations(bos, bo_count, &acquire_ctx);
@@ -283,8 +293,8 @@ static struct rocket_core *sched_to_core(struct rocket_device *rdev,
 {
 	unsigned int core;
 
-	for (core = 0; core < rdev->num_cores; core++) {
-		if (&rdev->cores[core].sched == sched)
+	for (core = 0; core < rdev->max_cores; core++) {
+		if (rdev->cores[core].dev && &rdev->cores[core].sched == sched)
 			return &rdev->cores[core];
 	}
 
@@ -348,6 +358,8 @@ static void rocket_job_handle_irq(struct rocket_core *core)
 	rocket_pc_writel(core, OPERATION_ENABLE, 0x0);
 	rocket_pc_writel(core, INTERRUPT_CLEAR, 0x1ffff);
 
+	rocket_devfreq_record_idle(core);
+
 	scoped_guard(mutex, &core->job_lock)
 		if (core->in_flight_job) {
 			if (core->in_flight_job->next_task_idx < core->in_flight_job->task_count) {
@@ -378,6 +390,8 @@ rocket_reset(struct rocket_core *core, struct drm_sched_job *bad)
 	scoped_guard(mutex, &core->job_lock) {
 		if (core->in_flight_job)
 			pm_runtime_put_noidle(core->dev);
+
+		rocket_devfreq_record_idle(core);
 
 		iommu_detach_group(NULL, core->iommu_group);
 
@@ -511,22 +525,42 @@ void rocket_job_fini(struct rocket_core *core)
 int rocket_job_open(struct rocket_file_priv *rocket_priv)
 {
 	struct rocket_device *rdev = rocket_priv->rdev;
-	struct drm_gpu_scheduler **scheds = kmalloc_objs(*scheds,
-							 rdev->num_cores);
-	unsigned int core;
+	struct drm_gpu_scheduler **scheds;
+	unsigned int core, n = 0;
 	int ret;
 
-	for (core = 0; core < rdev->num_cores; core++)
-		scheds[core] = &rdev->cores[core].sched;
+	scheds = kmalloc_objs(*scheds, rdev->max_cores);
+	if (!scheds)
+		return -ENOMEM;
+
+	/* Only the cores that are bound right now have a scheduler to offer. */
+	for (core = 0; core < rdev->max_cores; core++)
+		if (rdev->cores[core].dev)
+			scheds[n++] = &rdev->cores[core].sched;
+
+	if (!n) {
+		ret = -ENODEV;
+		goto err_free;
+	}
 
 	ret = drm_sched_entity_init(&rocket_priv->sched_entity,
 				    DRM_SCHED_PRIORITY_NORMAL,
-				    scheds,
-				    rdev->num_cores, NULL);
+				    scheds, n, NULL);
 	if (WARN_ON(ret))
-		return ret;
+		goto err_free;
+
+	/*
+	 * drm_sched_entity_init() keeps the list only when it holds more
+	 * than one scheduler, and rocket_job_close() frees what it kept.
+	 */
+	if (n < 2)
+		kfree(scheds);
 
 	return 0;
+
+err_free:
+	kfree(scheds);
+	return ret;
 }
 
 void rocket_job_close(struct rocket_file_priv *rocket_priv)
@@ -547,12 +581,15 @@ int rocket_job_is_idle(struct rocket_core *core)
 }
 
 static int rocket_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
-				   struct drm_rocket_job *job)
+				   struct drm_rocket_job *job, int *out_fence_fd)
 {
 	struct rocket_device *rdev = to_rocket_device(dev);
 	struct rocket_file_priv *file_priv = file->driver_priv;
 	struct rocket_job *rjob = NULL;
+	int out_fd = -1;
 	int ret = 0;
+
+	*out_fence_fd = -1;
 
 	if (job->task_count == 0)
 		return -EINVAL;
@@ -564,6 +601,7 @@ static int rocket_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 	kref_init(&rjob->refcount);
 
 	rjob->rdev = rdev;
+	rjob->explicit_sync = job->flags & DRM_ROCKET_JOB_EXPLICIT_SYNC;
 	rjob->domain = rocket_iommu_domain_get(file_priv);
 
 	ret = drm_sched_job_init(&rjob->base,
@@ -571,6 +609,21 @@ static int rocket_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 				 1, NULL, file->client_id);
 	if (ret)
 		goto out_put_job;
+
+	if (job->flags & DRM_ROCKET_JOB_IN_FENCE_FD) {
+		struct dma_fence *fence;
+
+		fence = sync_file_get_fence(job->in_fence_fd);
+		if (!fence) {
+			ret = -EINVAL;
+			goto out_cleanup_job;
+		}
+
+		/* drm_sched_job_add_dependency() consumes the fence reference. */
+		ret = drm_sched_job_add_dependency(&rjob->base, fence);
+		if (ret)
+			goto out_cleanup_job;
+	}
 
 	ret = rocket_copy_tasks(dev, file, job, rjob);
 	if (ret)
@@ -590,9 +643,38 @@ static int rocket_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 
 	rjob->out_bo_count = job->out_bo_handle_count;
 
+	if (job->flags & DRM_ROCKET_JOB_OUT_FENCE_FD) {
+		out_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fd < 0) {
+			ret = out_fd;
+			goto out_cleanup_job;
+		}
+	}
+
 	ret = rocket_job_push(rjob);
-	if (ret)
+	if (ret) {
+		if (out_fd >= 0)
+			put_unused_fd(out_fd);
 		goto out_cleanup_job;
+	}
+
+	/*
+	 * The job is now owned by the scheduler and must not be cleaned up
+	 * from this point on, even if installing the out-fence fails.
+	 */
+	if (out_fd >= 0) {
+		struct sync_file *sync_file;
+
+		sync_file = sync_file_create(&rjob->base.s_fence->finished);
+		if (!sync_file) {
+			put_unused_fd(out_fd);
+			ret = -ENOMEM;
+			goto out_put_job;
+		}
+
+		fd_install(out_fd, sync_file->file);
+		*out_fence_fd = out_fd;
+	}
 
 out_cleanup_job:
 	if (ret)
@@ -607,16 +689,24 @@ int rocket_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *fil
 {
 	struct drm_rocket_submit *args = data;
 	struct drm_rocket_job *jobs;
+	bool has_fences;
 	int ret = 0;
 	unsigned int i = 0;
 
 	if (args->job_count == 0)
 		return 0;
 
-	if (args->job_struct_size < sizeof(struct drm_rocket_job)) {
+	/*
+	 * The original job struct did not have the explicit fencing fields
+	 * at the end. Accept it for backwards compatibility and only fall
+	 * back to implicit synchronization for such jobs.
+	 */
+	if (args->job_struct_size < offsetof(struct drm_rocket_job, flags)) {
 		drm_dbg(dev, "job_struct_size field in drm_rocket_submit struct is too small.\n");
 		return -EINVAL;
 	}
+
+	has_fences = args->job_struct_size >= offsetofend(struct drm_rocket_job, out_fence_fd);
 
 	if (args->reserved != 0) {
 		drm_dbg(dev, "Reserved field in drm_rocket_submit struct should be 0.\n");
@@ -630,18 +720,48 @@ int rocket_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *fil
 	}
 
 	for (i = 0; i < args->job_count; i++) {
-		if (copy_from_user(&jobs[i],
-				   u64_to_user_ptr(args->jobs) + i * args->job_struct_size,
-				   sizeof(*jobs))) {
+		struct drm_rocket_job job = {
+			.in_fence_fd = -1,
+			.out_fence_fd = -1,
+		};
+		size_t size;
+
+		size = min_t(size_t, args->job_struct_size, sizeof(job));
+		if (copy_from_user(&job,
+				   u64_to_user_ptr(args->jobs) +
+				   (u64)i * args->job_struct_size,
+				   size)) {
 			ret = -EFAULT;
 			drm_dbg(dev, "Failed to copy incoming job array\n");
 			goto exit;
 		}
+
+		/* Don't honor fields that userspace did not provide. */
+		if (!has_fences)
+			job.flags = 0;
+
+		jobs[i] = job;
 	}
 
+	for (i = 0; i < args->job_count; i++) {
+		int out_fence_fd;
 
-	for (i = 0; i < args->job_count; i++)
-		rocket_ioctl_submit_job(dev, file, &jobs[i]);
+		ret = rocket_ioctl_submit_job(dev, file, &jobs[i], &out_fence_fd);
+		if (ret)
+			goto exit;
+
+		if (out_fence_fd >= 0) {
+			s32 __user *out;
+
+			out = (s32 __user *)(u64_to_user_ptr(args->jobs) +
+					     (u64)i * args->job_struct_size +
+					     offsetof(struct drm_rocket_job, out_fence_fd));
+			if (put_user(out_fence_fd, out)) {
+				ret = -EFAULT;
+				goto exit;
+			}
+		}
+	}
 
 exit:
 	kvfree(jobs);

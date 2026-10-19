@@ -29,6 +29,7 @@ struct rocket_job {
 	struct rocket_task *tasks;
 	u32 task_count;
 	u32 next_task_idx;
+	bool explicit_sync;
 
 	/* Fence to be signaled by drm-sched once its done with the job */
 	struct dma_fence *inference_done_fence;

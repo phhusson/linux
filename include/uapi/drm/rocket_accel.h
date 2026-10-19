@@ -15,11 +15,13 @@ extern "C" {
 #define DRM_ROCKET_SUBMIT			0x01
 #define DRM_ROCKET_PREP_BO			0x02
 #define DRM_ROCKET_FINI_BO			0x03
+#define DRM_ROCKET_IMPORT_BO			0x04
 
 #define DRM_IOCTL_ROCKET_CREATE_BO		DRM_IOWR(DRM_COMMAND_BASE + DRM_ROCKET_CREATE_BO, struct drm_rocket_create_bo)
 #define DRM_IOCTL_ROCKET_SUBMIT			DRM_IOW(DRM_COMMAND_BASE + DRM_ROCKET_SUBMIT, struct drm_rocket_submit)
 #define DRM_IOCTL_ROCKET_PREP_BO		DRM_IOW(DRM_COMMAND_BASE + DRM_ROCKET_PREP_BO, struct drm_rocket_prep_bo)
 #define DRM_IOCTL_ROCKET_FINI_BO		DRM_IOW(DRM_COMMAND_BASE + DRM_ROCKET_FINI_BO, struct drm_rocket_fini_bo)
+#define DRM_IOCTL_ROCKET_IMPORT_BO		DRM_IOWR(DRM_COMMAND_BASE + DRM_ROCKET_IMPORT_BO, struct drm_rocket_import_bo)
 
 /**
  * struct drm_rocket_create_bo - ioctl argument for creating Rocket BOs.
@@ -30,6 +32,39 @@ struct drm_rocket_create_bo {
 	 * @size: Input: Size of the requested BO.
 	 */
 	__u32 size;
+
+	/**
+	 * @handle: Output: GEM handle for the BO.
+	 */
+	__u32 handle;
+
+	/**
+	 * @dma_address: Output: DMA address for the BO in the NPU address
+	 * space.  This address is private to the DRM fd and is valid for
+	 * the lifetime of the GEM handle.
+	 */
+	__u64 dma_address;
+
+	/**
+	 * @offset: Output: Offset into the drm node to use for subsequent
+	 * mmap call.
+	 */
+	__u64 offset;
+};
+
+/**
+ * struct drm_rocket_import_bo - ioctl argument for importing a DMA-BUF as a
+ * Rocket BO.
+ *
+ * The DMA-BUF (typically allocated from a dma-heap) is imported and mapped
+ * into the NPU address space of the DRM file that issues the ioctl. The
+ * returned @dma_address is only valid for the lifetime of the GEM handle.
+ */
+struct drm_rocket_import_bo {
+	/**
+	 * @fd: Input: DMA-BUF file descriptor to import.
+	 */
+	__s32 fd;
 
 	/**
 	 * @handle: Output: GEM handle for the BO.
@@ -155,7 +190,47 @@ struct drm_rocket_job {
 	 * (size is that times 4).
 	 */
 	__u32 out_bo_handle_count;
+
+	/**
+	 * @flags: Input: Combination of DRM_ROCKET_JOB_* flags, used to
+	 * enable explicit synchronization for this job.
+	 *
+	 * The @flags, @in_fence_fd and @out_fence_fd fields were added
+	 * after the original job UAPI. They are only honored if
+	 * job_struct_size (in the parent &struct drm_rocket_submit) covers
+	 * them; otherwise implicit synchronization through the buffer
+	 * reservations is used.
+	 */
+	__u32 flags;
+
+	/**
+	 * @in_fence_fd: Input: sync_file file descriptor for a fence that
+	 * must be signaled before this job is submitted, or -1 for no
+	 * explicit dependency. Only used when @flags contains
+	 * %DRM_ROCKET_JOB_IN_FENCE_FD.
+	 */
+	__s32 in_fence_fd;
+
+	/**
+	 * @out_fence_fd: Output: sync_file file descriptor for a fence that
+	 * will be signaled when this job completes, or -1 if no explicit
+	 * output fence was requested. Only written when @flags contains
+	 * %DRM_ROCKET_JOB_OUT_FENCE_FD.
+	 */
+	__s32 out_fence_fd;
 };
+
+/**
+ * DRM_ROCKET_JOB_IN_FENCE_FD - wait for @drm_rocket_job.in_fence_fd
+ * before running the job.
+ */
+#define DRM_ROCKET_JOB_IN_FENCE_FD	(1 << 0)
+
+/**
+ * DRM_ROCKET_JOB_OUT_FENCE_FD - return a fence in
+ * @drm_rocket_job.out_fence_fd that is signaled when the job completes.
+ */
+#define DRM_ROCKET_JOB_OUT_FENCE_FD	(1 << 1)
 
 /**
  * struct drm_rocket_submit - ioctl argument for submitting commands to the NPU.

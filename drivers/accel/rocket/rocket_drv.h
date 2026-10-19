@@ -14,14 +14,14 @@ extern const struct dev_pm_ops rocket_pm_ops;
 struct rocket_iommu_domain {
 	struct iommu_domain *domain;
 	struct kref kref;
+	struct drm_mm mm;
+	struct mutex mm_lock;
 };
 
 struct rocket_file_priv {
 	struct rocket_device *rdev;
 
 	struct rocket_iommu_domain *domain;
-	struct drm_mm mm;
-	struct mutex mm_lock;
 
 	struct drm_sched_entity sched_entity;
 };

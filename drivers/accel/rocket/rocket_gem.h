@@ -9,8 +9,6 @@
 struct rocket_gem_object {
 	struct drm_gem_shmem_object base;
 
-	struct rocket_file_priv *driver_priv;
-
 	struct rocket_iommu_domain *domain;
 	struct drm_mm_node mm;
 	size_t size;
@@ -20,6 +18,8 @@ struct rocket_gem_object {
 struct drm_gem_object *rocket_gem_create_object(struct drm_device *dev, size_t size);
 
 int rocket_ioctl_create_bo(struct drm_device *dev, void *data, struct drm_file *file);
+
+int rocket_ioctl_import_bo(struct drm_device *dev, void *data, struct drm_file *file);
 
 int rocket_ioctl_prep_bo(struct drm_device *dev, void *data, struct drm_file *file);
 
